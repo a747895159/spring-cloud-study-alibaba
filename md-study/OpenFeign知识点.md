@@ -107,7 +107,7 @@
 				}
 			}
 		```
-	- 根据Targeter（获取子类DefaultTargeter或HystrixTargeter），使用InvocationHandlerFactory工厂创建代理对象DefaultInvocationHandler或SynchronousMethodHandler【当前创建了该类型】
+	- 根据Targeter（获取子类DefaultTargeter或HystrixTargeter），使用InvocationHandlerFactory工厂创建代理对象SynchronousMethodHandler
 		
 		
 	
@@ -179,7 +179,7 @@
 			request-attribute:
 			  enabled: true
 		  command:
-			#全局默认配置
+			#全局默认配置, 单个服务 可以指定serviceId
 			default:
 			  #线程隔离相关
 			  execution:
@@ -196,11 +196,11 @@
 					interruptOnTimeout: true
 					#是否在方法执行被取消时中断方法，默认值为false。没有实际意义，默认就好！
 					interruptOnCancel: false
-		  circuitBreaker:   #熔断器相关配置
-			enabled: true   #是否启动熔断器，默认为true，false表示不要引入Hystrix。
-			requestVolumeThreshold: 20     #启用熔断器功能窗口时间内的最小请求数，假设我们设置的窗口时间为10秒，
-			sleepWindowInMilliseconds: 5000    #所以此配置的作用是指定熔断器打开后多长时间内允许一次请求尝试执行，官方默认配置为5秒。
-			errorThresholdPercentage: 50   #窗口时间内超过50%的请求失败后就会打开熔断器将后续请求快速失败掉,默认配置为50
+			  circuitBreaker:   #熔断器相关配置
+				enabled: true   #是否启动熔断器，默认为true，false表示不要引入Hystrix。
+				requestVolumeThreshold: 20     #启用熔断器功能窗口时间内的最小请求数，假设我们设置的窗口时间为10秒，
+				sleepWindowInMilliseconds: 5000    #所以此配置的作用是指定熔断器打开后多长时间内允许一次请求尝试执行，官方默认配置为5秒。
+				errorThresholdPercentage: 50   #窗口时间内超过50%的请求失败后就会打开熔断器将后续请求快速失败掉,默认配置为50
 	```
 
 - Ribbon在功能包括客户端负载均衡器及用于中间层通信的客户端。全局配置：
@@ -247,8 +247,20 @@
 
 - **如果不启用Hystrix，Feign的超时时间则是Ribbon的超时时间，Feign自身的配置也会被覆盖**。
 
+# 5.Feign的原理
++ 以JAVA注解的方式定义的远程调用API接口(JDK代理类)，最终转换成HTTP的请求形式，然后将HTTP的请求的响应结果，解码成JAVA Bean，放回给调用者。
+
+	![](https://img2020.cnblogs.com/blog/1694759/202109/1694759-20210906174823643-1905489410.png)
+
++ @EnableFeignClients 注解上有 **@Import(FeignClientsRegistrar.class)**。将@FeignClients注解的类以FeignClientFactoryBean类型的BeanDifinotion注册到Ioc容器(注入的FeignClientFactoryBean类型)
++ 反射InvocationHandler 核心代理接口, Feign提供一个默认的 **FeignInvocationHandler** 类，该类处于 feign-core 核心jar包中。当起启动Hystrix时，会使用 **HystrixInvocationHandler**。
++ 从代理类中取到方法对应的MethodHandler方法处理器去执行.Feign提供了默认 SynchronousMethodHandler 实现类
++ SynchronousMethodHandler.invoke 方法 会对 请求编码,根据注入的Client实现类 去执行和解码。
+	- LoadBalancerFeignClient 类：内部使用 Ribben 负载均衡技术完成URL请求处理的feign.Client 客户端实现类。使用了delegate包装代理模式。
+	![](https://img2020.cnblogs.com/blog/1694759/202109/1694759-20210906180338353-605563650.png)
 
 
+	![](https://img2020.cnblogs.com/blog/1694759/202109/1694759-20210906180604651-82914352.png)
 
 
 
