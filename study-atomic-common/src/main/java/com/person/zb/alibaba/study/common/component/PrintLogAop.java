@@ -1,7 +1,7 @@
 package com.person.zb.alibaba.study.common.component;
 
 import com.alibaba.fastjson.JSONObject;
-import com.yonghui.wms.framework.annotation.PrintLog;
+import com.person.zb.alibaba.study.common.annotation.PrintLog;
 import lombok.extern.slf4j.Slf4j;
 import org.aspectj.lang.ProceedingJoinPoint;
 import org.aspectj.lang.annotation.Around;

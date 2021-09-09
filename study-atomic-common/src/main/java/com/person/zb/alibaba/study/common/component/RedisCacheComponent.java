@@ -1,9 +1,10 @@
 package com.person.zb.alibaba.study.common.component;
 
 
+import com.alibaba.fastjson.JSON;
 import com.alibaba.fastjson.JSONObject;
+import com.alibaba.fastjson.TypeReference;
 import com.alibaba.nacos.common.utils.CollectionUtils;
-import com.fasterxml.jackson.core.type.TypeReference;
 import com.person.zb.alibaba.study.common.functional.FunRtn;
 import com.person.zb.alibaba.study.common.functional.WorkRtnFun;
 import lombok.AllArgsConstructor;
@@ -37,7 +38,7 @@ public class RedisCacheComponent {
         if (val != null) {
             TypeReference<T> typeReference = new TypeReference<T>() {
             };
-            return JSONObject.parseObject(val, typeReference);
+            return JSON.parseObject(val, typeReference);
         } else {
             T t = rtnFun.doWork();
             redisTemplate.opsForValue().set(genCacheKey(cacheKey), JSONObject.toJSONString(t), cacheSecond, TimeUnit.SECONDS);
