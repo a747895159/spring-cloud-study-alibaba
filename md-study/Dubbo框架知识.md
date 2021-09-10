@@ -62,7 +62,7 @@
 # 6.Spring SPI机制
 
 - Spring的SPI机制主要体现在SpringBoot中，SpringBoot的启动包含new SpringApplication和执行run方法两个过程。
-- 获取类路径下所有META-INF/spring.factories
+- SpringFactoriesLoader 类 获取类路径下所有META-INF/spring.factories
 - 将文件中 EnableAutoConfiguration的路径通过反射机制 全部自动加载
 
 	![](https://img2020.cnblogs.com/blog/1694759/202108/1694759-20210821184926251-1939833322.png)

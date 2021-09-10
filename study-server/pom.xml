@@ -19,4 +19,30 @@
         </dependency>
     </dependencies>
 
+    <build>
+        <finalName>study-server</finalName>
+        <plugins>
+            <!--  springboot的热部署插件  -->
+            <plugin>
+                <groupId>org.springframework.boot</groupId>
+                <artifactId>spring-boot-devtools</artifactId>
+            </plugin>
+            <plugin>
+                <groupId>org.springframework.boot</groupId>
+                <artifactId>spring-boot-maven-plugin</artifactId>
+                <configuration>
+                    <fork>true</fork>  <!-- 如果没有该生效标志，热部署的devtools不生效 -->
+                </configuration>
+                <executions>
+                    <execution>
+                        <goals>
+                            <goal>build-info</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+        </plugins>
+    </build>
+
+
 </project>

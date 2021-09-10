@@ -20,6 +20,7 @@
         <module>study-biz</module>
         <module>study-atomic-common</module>
         <module>study-server</module>
+        <module>study-demo</module>
     </modules>
 
 

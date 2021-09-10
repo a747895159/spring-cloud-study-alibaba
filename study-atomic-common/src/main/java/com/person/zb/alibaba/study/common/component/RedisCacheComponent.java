@@ -1,16 +1,20 @@
 package com.person.zb.alibaba.study.common.component;
 
 
-import com.alibaba.fastjson.JSON;
 import com.alibaba.fastjson.JSONObject;
 import com.alibaba.fastjson.TypeReference;
-import com.alibaba.nacos.common.utils.CollectionUtils;
 import com.person.zb.alibaba.study.common.functional.FunRtn;
 import com.person.zb.alibaba.study.common.functional.WorkRtnFun;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.collections.CollectionUtils;
+import org.springframework.data.redis.connection.RedisStringCommands;
+import org.springframework.data.redis.core.RedisCallback;
 import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.data.redis.core.types.Expiration;
+import org.springframework.data.redis.serializer.RedisSerializer;
 
 import java.util.*;
 import java.util.concurrent.TimeUnit;
@@ -24,6 +28,7 @@ import java.util.stream.Collectors;
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
+@Slf4j
 public class RedisCacheComponent {
 
     public static final String CACHE_PRE = ":WMS:CACHE_";
@@ -36,9 +41,9 @@ public class RedisCacheComponent {
     public <T> T query(String cacheKey, WorkRtnFun<T> rtnFun, Integer cacheSecond) {
         String val = redisTemplate.opsForValue().get(genCacheKey(cacheKey));
         if (val != null) {
-            TypeReference<T> typeReference = new TypeReference<T>() {
+            TypeReference<T> type = new TypeReference<T>() {
             };
-            return JSON.parseObject(val, typeReference);
+            return JSONObject.parseObject(val, type);
         } else {
             T t = rtnFun.doWork();
             redisTemplate.opsForValue().set(genCacheKey(cacheKey), JSONObject.toJSONString(t), cacheSecond, TimeUnit.SECONDS);
@@ -52,47 +57,37 @@ public class RedisCacheComponent {
         Set<P> copyPrimarySet = new HashSet<>(primarySet);
         copyPrimarySet.removeAll(existMap.keySet());
         List<P> waitQueryList = new ArrayList<>(copyPrimarySet);
-        TypeReference<T> typeReference = new TypeReference<T>() {
-        };
         if (existMap.size() > 0) {
-
-            existMap.values().forEach(s -> {
-                T t = JSONObject.parseObject(s, typeReference);
-                rtnList.add(t);
-            });
-           /* String valStr = JSONObject.toJSONString(existMap.values());
-            Class<T> entityClass = (Class<T>) ((ParameterizedType) getClass().getGenericSuperclass()).getActualTypeArguments()[0];
-            List<T> parseArray = JSONArray.parseArray(valStr, entityClass);
-            rtnList.addAll(parseArray);*/
+            String valStr = JSONObject.toJSONString(existMap.values());
+            TypeReference<List<T>> typeReference = new TypeReference<List<T>>() {
+            };
+            List<T> parseArray = JSONObject.parseObject(valStr, typeReference);
+            rtnList.addAll(parseArray);
         }
         if (waitQueryList.size() > 0) {
             Map<P, T> queryDataMap = rtnFun.execute(waitQueryList);
-            Map<String, String> map = new HashMap<>();
-            queryDataMap.forEach((p, t) -> {
-                map.put(genCacheKey(cacheKeyPre, p), JSONObject.toJSONString(t));
-            });
-            redisTemplate.opsForValue().multiSet(map);
-            rtnList.addAll(queryDataMap.values());
+            RedisSerializer keySerializer = redisTemplate.getKeySerializer();
+            RedisSerializer valueSerializer = redisTemplate.getValueSerializer();
+            if (queryDataMap != null && queryDataMap.size() > 0) {
+                rtnList.addAll(queryDataMap.values());
+                redisTemplate.execute((RedisCallback<String>) connection -> {
+                    queryDataMap.forEach((p, t) -> {
+                        connection.set(keySerializer.serialize(genCacheKey(cacheKeyPre, p)), valueSerializer.serialize(JSONObject.toJSONString(t)),
+                                Expiration.seconds(cacheSecond), RedisStringCommands.SetOption.UPSERT);
+                    });
+                    return null;
+                });
+            }
+            log.info("放置redis结束");
         }
 
 
-       /* RedisSerializer keySerializer = redisTemplate.getKeySerializer();
-        RedisSerializer valueSerializer = redisTemplate.getValueSerializer();
-        if (queryDataMap != null && queryDataMap.size() > 0) {
-            rtnList.addAll(queryDataMap.values());
-            redisTemplate.executePipelined((RedisCallback<String>) connection -> {
-                queryDataMap.forEach((p, t) -> {
-                    connection.set(keySerializer.serialize(p), valueSerializer.serialize(t),
-                            Expiration.seconds(cacheSecond), RedisStringCommands.SetOption.UPSERT);
-                });
-                return null;
-            });
-        }*/
         return rtnList;
     }
 
 
     private <P> Map<P, String> multiGet(String cacheKeyPre, Set<P> keySet) {
+        log.info("redis中查询值: {}", JSONObject.toJSONString(keySet));
         List<P> keyList = new ArrayList<>(keySet);
         List<String> cacheKeyList = keyList.stream().map(o -> genCacheKey(cacheKeyPre, o)).collect(Collectors.toList());
         List<String> list = this.redisTemplate.opsForValue().multiGet(cacheKeyList);
@@ -104,6 +99,7 @@ public class RedisCacheComponent {
                 }
             }
         }
+        log.info("redis返回值: {}", JSONObject.toJSONString(map));
         return map;
     }
 
