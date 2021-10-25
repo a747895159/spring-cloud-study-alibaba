@@ -263,9 +263,27 @@
 	![](https://img2020.cnblogs.com/blog/1694759/202109/1694759-20210906180604651-82914352.png)
 
 
-
-
-
+# 6.如何开启日志争强？
+- Feign的日志争强是对Http请求打印详细信息的,有4个级别：
+    - NONE(默认、不打印任何日志)、
+    - BASIC(仅记录请求方法、URL、响应状态码及执行时间)
+    - HEADERS(除了BASIC中定义的信息之外，还有请求和响应的头信息)
+    - FULL(除了HEADERS中定义的信息之外，还有请求和响应的正文及元数据)
+- 1.先可以代码中全局配置：
+    ```
+        @Bean
+        public Logger.Level feignLevel(){
+            retun Logger.Level.FULL;
+        }
+    ```
+- 2.yaml中设置指定包的接口日志级别，cn.myjszl.service这是个包名,也可以指定特定的接口
+    ```
+        logging:
+          level:
+            cn.myjszl.service: debug
+    ```
+# 7.feign接口指定配置
+- 通过 @FeignClient 注解中属性 configuration 配置指定编码 Encoder 与解码 Decoder，作用域仅限当前单例
 
 
 
