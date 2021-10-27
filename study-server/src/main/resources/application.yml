@@ -10,3 +10,8 @@ server:
       #最小工作空闲线程数 默认10
       min-spare: 10
 
+
+mybatis:
+  typeAliasesPackage: com.nimo.shardingspheredemo.entity
+  mapperLocations: classpath:mapper/*.xml
+

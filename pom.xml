@@ -21,6 +21,7 @@
         <module>study-atomic-common</module>
         <module>study-server</module>
         <module>study-demo</module>
+        <module>study-dao</module>
     </modules>
 
 
@@ -110,6 +111,11 @@
             <dependency>
                 <groupId>org.example.study.alibaba</groupId>
                 <artifactId>study-atomic-common</artifactId>
+                <version>${study-demo.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.example.study.alibaba</groupId>
+                <artifactId>study-dao</artifactId>
                 <version>${study-demo.version}</version>
             </dependency>
 

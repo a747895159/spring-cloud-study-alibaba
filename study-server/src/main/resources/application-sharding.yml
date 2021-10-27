@@ -1,0 +1,110 @@
+
+spring:
+  shardingsphere:
+    enabled: true
+    # MySQL基本配置
+    datasource:
+      # 数据库别名
+      names: ds0,ds1
+      # 官网的示例是springboot 1.x的，坑逼的，2.x的是通过common配置公共项
+      common:
+        type: com.alibaba.druid.pool.DruidDataSource
+        driver-class-name: com.mysql.cj.jdbc.Driver
+        username: root
+        password: 123456
+      # 要配置的数据库的别名
+      ds0:
+        jdbc-url: jdbc:mysql://localhost:3306/demo_ds?serverTimezone=UTC&useSSL=false&useUnicode=true&characterEncoding=UTF-8
+      ds1:
+        jdbc-url: jdbc:mysql://localhost:3306/demo_ds?serverTimezone=UTC&useSSL=false&useUnicode=true&characterEncoding=UTF-8
+    rules:
+      # 配置路由规则（分库和分表都是这个节点配置），详细的参照官网
+      sharding:
+        # 配置分表路由
+        tables:
+          # 逻辑分表
+          # 常规的主键路由
+          t_order:
+            # 真实的分表节点（看命名就知道了）、  由数据源名 + 表名组成，以小数点分隔。多个表以逗号分隔，支持inline表达式。缺省表示使用已知数据源与逻辑表名称生成数据节点，用于广播表（即每个库中都需要一个同样的表用于关联查询，多为字典表）或只分库不分表且所有库的表结构完全一致的情况
+            actual-data-nodes: ds0.t_order_$->{0..4},ds1.t_order_$->{0..4}
+            table-strategy:
+              standard:
+                # 指定路由键
+                sharding-column: id
+                # 使用自定义分表算法的别名
+                sharding-algorithm-name: t-order-my
+            key-generate-strategy:
+              column: order_id
+              # 主键生成算法别名
+              key-generator-name: snowflake
+            # 分库策略,缺省表示使用默认分库策略
+            database-strategy:
+              # 用于单分片键的标准分片场景
+              standard:
+                # 指定路由键
+                sharding-column: id
+                # 使用自定义分表算法的别名
+                sharding-algorithm-name: t-order-my-database
+
+          t_receipt:
+            # 真实的分表节点（看命名就知道了）、  由数据源名 + 表名组成，以小数点分隔。多个表以逗号分隔，支持inline表达式。缺省表示使用已知数据源与逻辑表名称生成数据节点，用于广播表（即每个库中都需要一个同样的表用于关联查询，多为字典表）或只分库不分表且所有库的表结构完全一致的情况
+            actual-data-nodes: ds0.t_receipt$->{0..1}
+            table-strategy:
+              standard:
+                # 指定路由键
+                sharding-column: id
+                # 使用自定义分表算法的别名
+                sharding-algorithm-name: t-receipt-my
+            key-generate-strategy:
+              column: id
+              # id
+              key-generator-name: snowflake
+
+          # 强制路由规则
+          t_user_hint:
+            # 真实的分表节点（看命名就知道了）
+            actual-data-nodes: ds0.t_user_${['00','01','02','03','04','05','06','07','08','09','10','11','12','13','14','15','16','17','18','19','20','21','22','23','24','25','26','27','28','29','30','31','32','33','34','35','36','37','38','39','40','41','42','43','44','45','46','47','48','49','50','51','52','53','54','55','56','57','58','59']}
+            table-strategy:
+              hint:
+                # 使用自定义分表算法的别名
+                sharding-algorithm-name: t-user-my-hint
+            key-generate-strategy:
+              column: order_id
+              # 主键生成算法别名
+              key-generator-name: snowflake
+        sharding-algorithms:
+          # 自定义分表算法的别名
+          t-order-my:
+            # 指定自定义算法的类型，就是com.nolouser.demo.config.MyShardingAlgorithm的type属性
+            type: CLASS_BASED
+            # 本来我们用不到这个配置的，但是看了下解析这个节点的逻辑，是一定要存在的，这个节点是要解析成Map，就给了一个空元素的Map吧
+            props: {}
+
+          t-order-my-database:
+            # 指定自定义算法的类型，就是com.nolouser.demo.config.MyShardingAlgorithm的type属性
+            type: CLASS_BASED
+            # 本来我们用不到这个配置的，但是看了下解析这个节点的逻辑，是一定要存在的，这个节点是要解析成Map，就给了一个空元素的Map吧
+            props: { }
+
+          t-user-my-hint:
+            type: CLASS_BASED_HINT
+            props: {}
+
+          t-receipt-my:
+            type: INLINE
+            props:
+              # 不要漏掉 $ 或 ->
+              algorithm-expression: t_receipt$->{id % 2}
+        key-generators:
+          # 主键生成算法别名节点，配置生成算法
+          snowflake:
+            type: SNOWFLAKE
+            props:
+              worker-id: 123
+    props:
+      # 打印SQL语句
+      sql-show: true
+      # 是否在程序启动和更新时检查分片元数据的结构一致性。
+      check-table-metadata-enabled: false
+
+
