@@ -1,4 +1,5 @@
 
+# sharding-JDBC 4.1.1 版本分库分表配置
 spring:
   shardingsphere:
     enabled: true
@@ -81,8 +82,8 @@ spring:
             props: {}
 
           t-order-my-database:
-            # 指定自定义算法的类型，就是com.nolouser.demo.config.MyShardingAlgorithm的type属性
-            type: CLASS_BASED
+            # 可以指定自定义算法的类型
+            type: MOD
             # 本来我们用不到这个配置的，但是看了下解析这个节点的逻辑，是一定要存在的，这个节点是要解析成Map，就给了一个空元素的Map吧
             props: { }
 
