@@ -12,7 +12,9 @@ https://help.aliyun.com/document_detail/293595.html
 https://blog.csdn.net/prestigeding/article/details/78885420
 
 
+RocketMQ 顺序消息实现机制
 
+https://www.jianshu.com/p/0ff1b6a3da36
 
 
 
@@ -187,16 +189,26 @@ public void processConsumeResult(final ConsumeConcurrentlyStatus status,final Co
 
 # 5.Rocketmq怎么保证队列完全顺序消费？
 
+
 - 全局顺序消息：只有一个队列，性能较差；
 - 分区顺序消息：多个队列,单一队列中消息顺序。生产者采用按key取模运算，将同一key消息都放到同一个队列。消费端要使用MessageListenerOrderly接口。但是会有问题，消息消费失败，无法跳过，当前队列消费暂停。性能也受影响。
 
+![](https://img2020.cnblogs.com/blog/1694759/202111/1694759-20211119134643158-1229659813.png)
 
+- RocketMQ消息消费模式如下图：
 
+![](https://img2020.cnblogs.com/blog/1694759/202111/1694759-20211119134255577-809940184.png)
 
-
-
-
-
+- 1.Broker中在类RebalanceLockManager d的静态变量 mqLockTable (变量类型为 ConcurrentMap)中存储了以消费组 为key ,以 ConcurrentMap (以消息主题，主题下队列为key，具体信息是消费者客户端id 为和客户端上次锁定时间 为value的 LockEntity 对象）为value的消费者锁定信息;
+- 2.broker 接受请求后执行 RebalanceLockManager de tryLockBatch方法,执行顺序如下：
+	+ 1.请求参数解析，解析成 要锁定的主题下队列集合和消费者ID；
+	+ 2.遍历请求锁定的队列
+	+ 3.通过 mqLockTable 判断单个队列是否已经锁定,即调用 LockEntry 的 isLocked 方法,主要是判断 clientId 是否是当前消费者ID,如果是就更新锁定时间，并加入已经锁定队列中,如果 mqLockTable 不存在 这个消费组或者当前锁定的clientId与请求的clientId 不相等，就加入未锁定队列;
+	+ 4.判断未锁定队列是否为空，不为空,判断当前消费组是否在mqLockTable 中,不存在就创建,后启用 RebalanceLockManager的可重入锁，遍历未锁定队列.
+	+ 5.执行第3步
+	+ 6.释放 RebalanceLockManager 的可重入锁，返回当前锁定的信息。
+- 3.consumer 上顺序消费的类有个定时任务，每隔20去向broke 发送它订阅的topic 的锁定请求。
+- 4.consumer 上在获取到队列的消息的时候，让消费线程池去处理，处理前必须获取到本地队列的锁。参考：ConsumeMessageOrderlyService.ConsumeRequest 类。
 
 
 # 6. RocketMQ 业务名词含义。
