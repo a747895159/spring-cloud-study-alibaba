@@ -282,3 +282,35 @@ RocketMQ事务消息的实现原理是类似基于二阶段提交与事务状态
 + B.消息服务端收到Prepare的消息时，如何保证消息不会被消费端立即处理呢？原来消息服务端收到Prepare状态的消息，会先备份原消息的主题与队列，然后变更主题为：RMQ_SYS_TRANS_OP_HALF_TOPIC，队列为0。
 + C.消息服务端会开启一个专门的线程，以每60s的频率从RMQ_SYS_TRANS_OP_HALF_TOPIC中拉取一批消息，进行事务状态的回查，其实现原理是根据消息所属的消息生产者组名随机获取一个生产者，向其询问该消息对应的本地事务是否成功，如果本地事务成功(该部分是由业务提供的事务回查监听器来实现)，则消息服务端执行提交动作；如果事务状态返回失败，则消息服务端执行回滚动作；如果事务状态未知，则不做处理，待下一次定时任务触发再检查。默认如果连续5次回查都无法得到确切的事务状态，则执行回滚动作。
 
+
+
+# 11.RocketMQ 与 Kafka 区别
+
+- 1.架构区别
+	+ RocketMQ由NameServer、Broker、Consumer、Producer组成，NameServer之间互不通信，Broker会向所有的nameServer注册，通过心跳判断broker是否存活，producer和consumer 通过nameserver就知道broker上有哪些topic。
+	+ Kafka的元数据信息都是保存在Zookeeper，新版本部分已经存放到了Kafka内部了，由Broker、Zookeeper、Producer、Consumer组成。
+
+- 2.维度区别
+	+ Kafka的master/slave是基于partition(分区)维度的，而RocketMQ是基于Broker维度的；Kafka的master/slave是可以切换的（主要依靠于Zookeeper的主备切换机制）RocketMQ无法实现自动切换，当RocketMQ的Master宕机时，读能被路由到slave上，但写会被路由到此topic的其他Broker上。
+
+- 3.刷盘机制
+	+ RocketMQ支持同步刷盘，也就是每次消息都等刷入磁盘后再返回，保证消息不丢失，但对吞吐量稍有影响。一般在主从结构下，选择异步双写策略是比较可靠的选择。
+
+- 4.消息查询
+	+ RocketMQ支持消息查询，除了queue的offset外，还支持自定义key。RocketMQ对offset和key都做了索引，均是独立的索引文件。
+
+- 5.服务治理
+	+ Kafka用Zookeeper来做服务发现和治理，broker和consumer都会向其注册自身信息，同时订阅相应的znode，这样当有broker或者consumer宕机时能立刻感知，做相应的调整；
+	+ RocketMQ用自定义的nameServer做服务发现和治理，其实时性差点，比如如果broker宕机，producer和consumer不会实时感知到，需要等到下次更新broker集群时(最长30S)才能做相应调整，服务有个不可用的窗口期，但数据不会丢失，且能保证一致性。但是某个consumer宕机，broker会实时反馈给其他consumer，立即触发负载均衡，这样能一定程度上保证消息消费的实时性。
+	
+- 6.消费确认
+	+ RocketMQ仅支持手动确认，也就是消费完一条消息ack+1，会定期向broker同步消费进度，或者在下一次pull时附带上offset。
+	+ Kafka支持定时确认，拉取到消息自动确认和手动确认，offset存在zookeeper上。
+
+- 7.消息回溯
+	+ Kafka理论上可以按照Offset来回溯消息。
+	+ RocketMQ支持按照时间来回溯消息，精度毫秒，例如从一天之前的某时某分某秒开始重新消费消息，典型业务场景如consumer做订单分析，但是由于程序逻辑或者依赖的系统发生故障等原因，导致今天消费的消息全部无效，需要重新从昨天零点开始消费，那么以时间为起点的消息重放功能对于业务非常有帮助。
+	
+- 8.RocketMQ特有
+	+ 支持tag
+	+ 支持事务消息、顺序消息
