@@ -1,4 +1,4 @@
-package com.person.zb.alibaba.study.common.component;
+package com.person.zb.alibaba.study.common.config;
 
 
 import com.alibaba.fastjson.JSONObject;
@@ -33,13 +33,11 @@ public class RedisCacheComponent {
 
     public static final String CACHE_PRE = ":WMS:CACHE_";
 
-    private String nameSpace;
-
-    private RedisTemplate<String, String> redisTemplate;
+    private RedisTemplate<String, Object> redisTemplate;
 
 
     public <T> T query(String cacheKey, WorkRtnFun<T> rtnFun, Integer cacheSecond) {
-        String val = redisTemplate.opsForValue().get(genCacheKey(cacheKey));
+        String val = (String) redisTemplate.opsForValue().get(genCacheKey(cacheKey));
         if (val != null) {
             TypeReference<T> type = new TypeReference<T>() {
             };
@@ -90,12 +88,12 @@ public class RedisCacheComponent {
         log.info("redis中查询值: {}", JSONObject.toJSONString(keySet));
         List<P> keyList = new ArrayList<>(keySet);
         List<String> cacheKeyList = keyList.stream().map(o -> genCacheKey(cacheKeyPre, o)).collect(Collectors.toList());
-        List<String> list = this.redisTemplate.opsForValue().multiGet(cacheKeyList);
+        List<Object> list = this.redisTemplate.opsForValue().multiGet(cacheKeyList);
         Map<P, String> map = new HashMap<>(16);
         if (CollectionUtils.isNotEmpty(list)) {
             for (int i = 0; i < list.size(); i++) {
                 if (list.get(i) != null) {
-                    map.put(keyList.get(i), list.get(i));
+                    map.put(keyList.get(i), (String) list.get(i));
                 }
             }
         }
@@ -112,7 +110,7 @@ public class RedisCacheComponent {
     }
 
     public String genCacheKey(Object... strArr) {
-        StringBuilder sb = new StringBuilder(nameSpace + CACHE_PRE);
+        StringBuilder sb = new StringBuilder(CACHE_PRE);
         for (Object n : strArr) {
             if (n != null) {
                 sb.append(n);
