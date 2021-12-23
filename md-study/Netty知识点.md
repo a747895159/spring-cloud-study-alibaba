@@ -41,3 +41,8 @@ sun.misc.Unsafe.copyMemory() 的调用，背后的实现原理与 memcpy() 类�
 - Netty 使用基于java使用对外内存，对于堆外直接内存的分配和回收，是一件耗时的操作,**Netty 提供了基于内存池的缓冲区重用机制**：
 - 我们的数据传输一般都是通过TCP/IP协议实现的，在实际应用中，很有可能一条完整的消息被分割为多个数据包进行网络传输，而单个的数据包对你而言是没有意义的，只有当这些数据包组成一条完整的消息时你才能做出正确的处理，而Netty可以通过零拷贝的方式将这些数据包组合成一条完整的消息供你来使用。
 - 因为CompositeChannelBuffer并没有将多个ChannelBuffer真正的组合起来，而只是保存了他们的引用，这样就避免了数据的拷贝，实现了Zero Copy。
+
+# 2.Netty如何修复空轮询的？
+- Selector的空轮询BUG，臭名昭著的epoll bug，是 JDK NIO的BUG。若结果为空，在没有wakeup或线的消息时，则发生空循环，CPU使用率100%。
+    - 1、对Selector的select操作周期进行统计，每完成一次空的select操作进行一次计数，若在某个周期内连续发生N次空轮询，则触发了epoll死循环bug。
+    - 2、重建Selector，判断是否是其他线程发起的重建请求，若不是则将原SocketChannel从旧的Selector上去除注册，重新注册到新的Selector上，并将原来的Selector关闭。

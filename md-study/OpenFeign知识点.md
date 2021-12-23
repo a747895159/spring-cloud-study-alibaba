@@ -68,7 +68,7 @@
 
 + 5.FeignClientFactoryBean#getObject(getTarget())方法
 
-	- 获取@FeignClient 上指定的 configuration(指定 编码 Encoder、解码 Decoder、Contract)
+	- 获取@FeignClient 上指定的 configuration(指定 编码 Encoder、解码 Decoder、Contract、RequestInterceptor)
 		```
 			protected Feign.Builder feign(FeignContext context) {
 				FeignLoggerFactory loggerFactory = get(context, FeignLoggerFactory.class);

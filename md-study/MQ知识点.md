@@ -200,7 +200,7 @@ public void processConsumeResult(final ConsumeConcurrentlyStatus status,final Co
 ![](https://img2020.cnblogs.com/blog/1694759/202111/1694759-20211119134255577-809940184.png)
 
 - 1.Broker中在类RebalanceLockManager d的静态变量 mqLockTable (变量类型为 ConcurrentMap)中存储了以消费组 为key ,以 ConcurrentMap (以消息主题，主题下队列为key，具体信息是消费者客户端id 为和客户端上次锁定时间 为value的 LockEntity 对象）为value的消费者锁定信息;
-- 2.broker 接受请求后执行 RebalanceLockManager de tryLockBatch方法,执行顺序如下：
+- 2.broker 接受请求后执行 RebalanceLockManager 的 tryLockBatch方法,执行顺序如下：
 	+ 1.请求参数解析，解析成 要锁定的主题下队列集合和消费者ID；
 	+ 2.遍历请求锁定的队列
 	+ 3.通过 mqLockTable 判断单个队列是否已经锁定,即调用 LockEntry 的 isLocked 方法,主要是判断 clientId 是否是当前消费者ID,如果是就更新锁定时间，并加入已经锁定队列中,如果 mqLockTable 不存在 这个消费组或者当前锁定的clientId与请求的clientId 不相等，就加入未锁定队列;
