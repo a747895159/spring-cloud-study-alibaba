@@ -21,7 +21,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
 /**
- * @Desc:
+ * @Desc: Redis批量查询缓存
  * @Author: ZhouBin
  * @Date: 2021/9/9
  */
