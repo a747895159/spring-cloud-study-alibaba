@@ -241,7 +241,7 @@ public void processConsumeResult(final ConsumeConcurrentlyStatus status,final Co
 + C.消息生产者以每30s的频率去拉取主题的路由信息，即消息生产者并不会立即感知 Broker 服务器的新增与删除。
 
 
-# 8.RebalaceService 线程：
+# 8.RebalanceService 线程：
 
 ![](https://img2020.cnblogs.com/blog/1694759/202111/1694759-20211116145625523-1563475991.png)
 
