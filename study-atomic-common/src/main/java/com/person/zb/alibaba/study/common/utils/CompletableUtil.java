@@ -3,13 +3,12 @@ package com.person.zb.alibaba.study.common.utils;
 
 import com.google.common.base.Throwables;
 import com.google.common.collect.Lists;
-import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import com.person.zb.alibaba.study.common.functional.Fun;
 import com.person.zb.alibaba.study.common.functional.FunRtn;
 import com.person.zb.alibaba.study.common.functional.Worker;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.commons.collections4.CollectionUtils;
-import org.apache.commons.lang.RandomStringUtils;
+import org.apache.commons.collections.CollectionUtils;
+import org.apache.commons.lang3.RandomStringUtils;
 import org.apache.skywalking.apm.toolkit.trace.RunnableWrapper;
 import org.apache.skywalking.apm.toolkit.trace.SupplierWrapper;
 import org.slf4j.MDC;
@@ -27,7 +26,7 @@ import java.util.stream.Collectors;
 @Slf4j
 public class CompletableUtil {
 
-    public static final String TRACE_ID = "traceId";
+    public static final String TRACE_ID = "bizId";
 
     public static ThreadPoolExecutor defaultExecutor;
 
@@ -48,20 +47,30 @@ public class CompletableUtil {
      */
     public static CompletableFuture<Void> runSingleAsync(Worker fun, Executor executor) {
         Object cacheObject = getCacheLocal();
-        Map<String, String> contextMap = MDC.getCopyOfContextMap();
         String mastNo = UUID.randomUUID().toString().replaceAll("-", "");
-        log.info("开启多线程调用：{}", mastNo);
+        log.debug("开启多线程调用：{}", mastNo);
+        logQueueSize(executor);
         return CompletableFuture.runAsync(RunnableWrapper.of(() -> {
             try {
+                Map<String, String> contextMap = MDC.getCopyOfContextMap();
                 setContent(contextMap, cacheObject, mastNo);
                 fun.doWork();
             } catch (Exception e) {
-                log.error("线程执行异常", e);
+                log.error("线程执行异常 {}", Throwables.getStackTraceAsString(e));
             } finally {
                 MDC.clear();
                 remove();
             }
         }), executor);
+    }
+
+    private static void logQueueSize(Executor executor) {
+        if (executor instanceof ThreadPoolExecutor) {
+            ThreadPoolExecutor tpe = (ThreadPoolExecutor) executor;
+            if (tpe.getQueue() != null && tpe.getQueue().size() > tpe.getCorePoolSize() * 2) {
+                log.info("线程池当前队列容量:{}", tpe.getQueue().size());
+            }
+        }
     }
 
     /**
@@ -87,12 +96,13 @@ public class CompletableUtil {
             return;
         }
         Object cacheObject = getCacheLocal();
-        Map<String, String> contextMap = MDC.getCopyOfContextMap();
         String mastNo = UUID.randomUUID().toString().replaceAll("-", "");
-        log.info("开启多线程调用：{}", mastNo);
+        log.debug("开启多线程调用：{}", mastNo);
+        logQueueSize(executor);
         try {
             CompletableFuture.allOf(list.stream().map(t -> CompletableFuture.runAsync(RunnableWrapper.of(() -> {
                 try {
+                    Map<String, String> contextMap = MDC.getCopyOfContextMap();
                     setContent(contextMap, cacheObject, mastNo);
                     fun.execute(t);
                 } finally {
@@ -120,12 +130,16 @@ public class CompletableUtil {
      * 多线程异步执行批量任务
      */
     public static <P> void runAsync(List<P> list, Fun<P> fun, Executor executor) {
+        if (CollectionUtils.isEmpty(list)) {
+            return;
+        }
         Object cacheObject = getCacheLocal();
-        Map<String, String> contextMap = MDC.getCopyOfContextMap();
         String mastNo = UUID.randomUUID().toString().replaceAll("-", "");
-        log.info("开启多线程调用：{}", mastNo);
+        log.debug("开启多线程调用：{}", mastNo);
+        logQueueSize(executor);
         list.forEach(t -> CompletableFuture.runAsync(RunnableWrapper.of(() -> {
             try {
+                Map<String, String> contextMap = MDC.getCopyOfContextMap();
                 setContent(contextMap, cacheObject, mastNo);
                 fun.execute(t);
             } catch (Exception e) {
@@ -158,12 +172,13 @@ public class CompletableUtil {
             return Lists.newArrayList(fun.execute(list.get(0)));
         }
         Object cacheObject = getCacheLocal();
-        Map<String, String> contextMap = MDC.getCopyOfContextMap();
         String mastNo = UUID.randomUUID().toString().replaceAll("-", "");
-        log.info("开启多线程调用：{}", mastNo);
+        log.debug("开启多线程调用：{}", mastNo);
+        logQueueSize(executor);
         try {
             List<CompletableFuture<R>> futureList = list.stream().map(p -> CompletableFuture.supplyAsync(SupplierWrapper.of(() -> {
                 try {
+                    Map<String, String> contextMap = MDC.getCopyOfContextMap();
                     setContent(contextMap, cacheObject, mastNo);
                     return fun.execute(p);
                 } finally {
@@ -191,9 +206,8 @@ public class CompletableUtil {
 
     private static synchronized void initExecutor() {
         if (defaultExecutor == null) {
-            defaultExecutor = new ThreadPoolExecutor(10, 20,
-                    60, TimeUnit.SECONDS, new LinkedBlockingQueue<>(5000), new ThreadFactoryBuilder()
-                    .setNameFormat("Executor-%s").build(), new ThreadPoolExecutor.CallerRunsPolicy());
+            defaultExecutor = new ThreadPoolExecutor(10, 15,
+                    60, TimeUnit.SECONDS, new LinkedBlockingQueue<>(1000), new CustomizeThreadFactory("Executor"), new ThreadPoolExecutor.CallerRunsPolicy());
         }
 
     }
@@ -228,16 +242,29 @@ public class CompletableUtil {
         setCacheLocal(cacheObject);
     }
 
-    public static String getRealMessage(Throwable e) {
+    /**
+     * 异常转换
+     */
+    /*public static String getRealMessage(Throwable e) {
         // 如果e不为空，则去掉外层的异常包装
         while (e != null) {
             Throwable cause = e.getCause();
             if (cause == null) {
+                if (e instanceof BaseException) {
+                    String errMsg = ((BaseException) e).getErrorMessage();
+                    if (errMsg == null) {
+                        errMsg = e.getMessage();
+                    }
+                    return errMsg;
+                }
                 return e.getMessage();
             }
             e = cause;
         }
         return "";
+    }*/
+    public static String getRealMessage(Throwable e) {
+        return e.getMessage();
     }
 
     public static RuntimeException getBaseException(Throwable e) {

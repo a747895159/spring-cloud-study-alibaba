@@ -14,8 +14,8 @@
 		  tomcat:
 			# 等待队列数,默认100
 			accept-count: 100
-			#最大链接数,默认8192。当为-1 不限制连接数
-			max-connections: 8192
+			#最大链接数,默认10000。当为-1 不限制连接数 (AbstractEndpoint.class)
+			max-connections: 10000
 			threads:
 			  #最大线程数，默认200。一般根据CPU来的，1核≈200个。4核8G，可以配置为800
 			  max: 200

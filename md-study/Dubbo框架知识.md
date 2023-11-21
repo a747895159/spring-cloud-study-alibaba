@@ -66,6 +66,8 @@
 - 将文件中 EnableAutoConfiguration的路径通过反射机制 全部自动加载
 
 	![](https://img2020.cnblogs.com/blog/1694759/202108/1694759-20210821184926251-1939833322.png)
+    
+    ![](https://img2022.cnblogs.com/blog/1694759/202208/1694759-20220817134025106-452912629.png)
 
 ```
 public static List<String> loadFactoryNames(Class<?> factoryClass, ClassLoader classLoader) {

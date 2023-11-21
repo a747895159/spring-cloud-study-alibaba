@@ -209,8 +209,39 @@ B+树只需要去遍历叶子节点就可以实现整棵树的遍历。而且在
 	- (update、delete)当where条件作为主键时,通过对主键索引加record locks来处理幻读。
 	- (update、delete)当where条件为非主键索引时，通过next-key锁处理。next-key是record locks(索引加锁/行锁) 和 gap locks(间隙锁，每次锁住的不光是需要使用的数据，还会锁住这些数据附近的数据)的结合。
 
+# 19.慢SQL优化思路
 
+- **慢查询日志记录慢SQL**
+- **explain查询分析SQL的执行计划**
 
+	- type表示连接类型，查看索引执行情况的一个重要指标。以下性能从好到坏依次：system  > const > eq_ref > ref  > ref_or_null > index_merge > unique_subquery > index_subquery > range > index > ALL
+        - system：这种类型要求数据库表中只有一条数据，是const类型的一个特例，一般情况下是不会出现的。
+        - const：通过一次索引就能找到数据，一般用于主键或唯一索引作为条件，这类扫描效率极高，，速度非常快。
+        - eq_ref：常用于主键或唯一索引扫描，一般指使用主键的关联查询
+        - ref : 常用于非主键和唯一索引扫描。
+        - ref_or_null：这种连接类型类似于ref，区别在于MySQL会额外搜索包含NULL值的行
+        - index_merge：使用了索引合并优化方法，查询使用了两个以上的索引。
+        - unique_subquery：类似于eq_ref，条件用了in子查询
+        - index_subquery：区别于unique_subquery，用于非唯一索引，可以返回重复值。
+        - range：常用于范围查询，比如：between ... and 或 In 等操作
+        - index：全索引扫描
+        - ALL：全表扫描
+    - extra 该字段包含有关MySQL如何解析查询的其他信息，它一般会出现这几个值
+        - Using filesort：表示按文件排序，一般是在指定的排序和索引排序不一致的情况才会出现。一般见于order by语句
+        - Using index ：表示是否用了覆盖索引。
+        - Using temporary: 表示是否使用了临时表,性能特别差，需要重点优化。一般多见于group by语句，或者union语句。
+        - Using where : 表示使用了where条件过滤.
+        - Using index condition：MySQL5.6之后新增的索引下推。在存储引擎层进行数据过滤，而不是在服务层过滤，利用索引现有的数据减少回表的数据 
+- **慢查询SQL注意事项**
+    - 隐式转换
+    - 最左匹配
+    - 深分页问题
+    - in元素过多:建议不要超过 200个
+    - order by 走文件排序导致的慢查询
+    - 索引字段上使用（!=、 not in、is null、is not null），索引可能失效
+    - 左右连接，关联的字段编码格式不一样
+    - delete + in子查询不走索引
+    
 
 
 

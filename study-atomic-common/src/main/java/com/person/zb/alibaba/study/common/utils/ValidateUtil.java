@@ -1,6 +1,8 @@
 package com.person.zb.alibaba.study.common.utils;
 
-import org.apache.commons.lang.StringUtils;
+
+import com.person.zb.alibaba.study.common.exception.SystemException;
+import org.apache.commons.lang3.StringUtils;
 import org.hibernate.validator.HibernateValidator;
 
 import javax.validation.ConstraintViolation;
@@ -29,7 +31,7 @@ public class ValidateUtil {
         // 抛出检验异常
         if (constraintViolations.size() > 0) {
             ConstraintViolation<T> item = constraintViolations.iterator().next();
-            throw new RuntimeException(String.format("参数校验失败:[%s] %s", item.getPropertyPath(), item.getMessage()));
+            throw new SystemException(String.format("参数校验失败:[%s] %s", item.getPropertyPath(), item.getMessage()));
         }
     }
 
@@ -41,7 +43,7 @@ public class ValidateUtil {
      */
     public static void validateStr(String parameter, String message) {
         if (StringUtils.isBlank(parameter)) {
-            throw new RuntimeException(message);
+            throw new SystemException(message);
         }
     }
 
@@ -52,8 +54,8 @@ public class ValidateUtil {
      * @param message   错误描述
      */
     public static void validateNotNull(Object parameter, String message) {
-        if (parameter == null) {
-            throw new RuntimeException(message);
+        if (parameter==null) {
+            throw new SystemException(message);
         }
     }
 }
