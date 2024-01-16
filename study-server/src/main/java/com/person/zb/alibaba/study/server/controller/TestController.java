@@ -1,5 +1,6 @@
 package com.person.zb.alibaba.study.server.controller;
 
+import io.swagger.annotations.Api;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
@@ -15,6 +16,7 @@ import org.springframework.web.bind.annotation.RestController;
  * @Author: ZhouBin
  * @Date: 2021/12/9
  */
+@Api(tags = {"测试代码"})
 @RestController
 @RequestMapping("/dc/manual")
 @Slf4j
