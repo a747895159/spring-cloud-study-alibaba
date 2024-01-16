@@ -1,13 +1,13 @@
 server:
   tomcat:
-    # \u6700\u5927\u7B49\u5F85\u6570,\u9ED8\u8BA4100
+    #最大等待数,默认100
     accept-count: 100
-    #\u6700\u5927\u94FE\u63A5\u6570,\u9ED8\u8BA48192\u3002\u5F53\u4E3A-1 \u4E0D\u9650\u5236\u8FDE\u63A5\u6570
+    #最大链接数,默认8192。当为-1 不限制连接数
     max-connections: 8192
     threads:
-      #\u6700\u5927\u7EBF\u7A0B\u6570\uFF0C\u9ED8\u8BA4200\u3002\u4E00\u822C\u6839\u636ECPU\u6765\u7684\uFF0C1\u6838\u2248200\u4E2A\u30024\u68388G\uFF0C\u53EF\u4EE5\u914D\u7F6E\u4E3A800
+      #最大线程数，默认200。一般根据CPU来的，1核≈200个。4核8G，可以配置为800
       max: 200
-      #\u6700\u5C0F\u5DE5\u4F5C\u7A7A\u95F2\u7EBF\u7A0B\u6570 \u9ED8\u8BA410
+      #最小工作空闲线程数 默认10
       min-spare: 10
   port: 8000
 
