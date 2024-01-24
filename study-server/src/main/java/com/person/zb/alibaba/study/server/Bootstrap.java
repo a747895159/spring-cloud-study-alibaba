@@ -6,6 +6,7 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.boot.autoconfigure.jdbc.DataSourceAutoConfiguration;
 import org.springframework.cloud.client.SpringCloudApplication;
 import org.springframework.cloud.client.discovery.EnableDiscoveryClient;
+import org.springframework.context.ConfigurableApplicationContext;
 import org.springframework.context.annotation.ComponentScan;
 import springfox.documentation.swagger2.annotations.EnableSwagger2WebMvc;
 
@@ -23,7 +24,17 @@ import springfox.documentation.swagger2.annotations.EnableSwagger2WebMvc;
 public class Bootstrap {
 
     public static void main(String[] args) {
-        SpringApplication.run(Bootstrap.class, args);
+        ConfigurableApplicationContext run =SpringApplication.run(Bootstrap.class, args);
         log.info("Bootstrap started successfully");
+
+        // 5秒 自动退出
+       /* try {
+            Thread.sleep(5000);
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
+        int exitCode = SpringApplication.exit(run, () -> 0);
+        System.exit(exitCode);*/
+
     }
 }
