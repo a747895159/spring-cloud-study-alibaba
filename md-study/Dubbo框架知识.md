@@ -28,7 +28,7 @@
 
   
 
-  # 3.Dubbo 与 Spring Cloud 区别
+# 3.Dubbo 与 Spring Cloud 区别
 
   + dubbo 仅是一个RPC框架。而SpringCloud集成了RPC、注册中心Eureka、负载均衡Ribbon、服务网关、分布式配置、限流Hystrix、消息总线、链路追踪等，目标是微服务架构的一站式解决方案。dubbo也就相当于OpenFeign（声明式、模板化的HTTP客户端）+ 负载均衡Ribbon  。
   + dubbo使用Netty下NIO框架，基于TCP协议传输，采用Hession2 序列化 的。RPC性能上更高。
@@ -43,7 +43,7 @@
 + SPI(Service Provider Interface)服务提供商接口，**是一种动态替换发现服务实现者的机制**。 JDK 为SPI提供了工具类 java.util.ServiceLoader，指定加载**resource目录`META-INF/services`下，文件名就是服务接口的全限定名**。
   + 缺点：ServiceLoader也算是使用的延迟加载。但是通过遍历获取，接口的实现类全部实例化一遍，不灵活浪费。
   + 优点：不需要改动源代码可以实现扩展，解耦，对源代码无侵入。只要添加配置即可实现，符合开闭原则。
-  + 举例：jdbc的 Driver 驱动。
+  + 举例：jdbc的 Driver 驱动、Slf4j日志框架、Dubbo框架、Spring框架
 + Dubbo SPI对JDK SPI进行了扩展，**由原来的提供者类的全限定名列表改成了KV形式的列表，这也导致了Dubbo中无法直接使用JDK ServiceLoader**，所以，在Dubbo中有**ExtensionLoader是扩展点载入器，用于载入Dubbo中的各种可配置组件。Dubbo默认依次扫描\**`META-INF/dubbo/internal/、META-INF/dubbo/、META-INF/services/`三个classpath目录下的配置文件\**。\**配置文件以具体扩展接口全名命名。\****
 
 ![](https://img2020.cnblogs.com/blog/1694759/202108/1694759-20210804210317619-1097620275.png)
@@ -52,11 +52,13 @@
 # 5.JDK SPI机制
 
 - SPI：是一种将服务接口与服务实现分离以达到解耦可拔插、大大提升了程序可扩展性的机制。避免代码污染,实现某块可插拔。
-- 缺点：ServiceLoader只提供了遍历的方式来获取目标实现类，没有提供按需加载的方法。
+- 缺点：ServiceLoader只提供了遍历的方式来获取目标实现类，没有提供按需加载的方法。只能一次获取所有的接口实例，不支持排序，随着新的实例加入，会出现排序不稳定的情况。
 - 规范流程：
 	- 1. 制定统一的规范（比如 java.sql.Driver）
     - 2. 服务提供商提供这个规范具体的实现，在自己jar包的META-INF/services/目录里创建一个以服务接口命名的文件，内容是实现类的全命名（比如：com.mysql.jdbc.Driver）。
 	- 3. 平台引入外部模块的时候，就能通过该jar包META-INF/services/目录下的配置文件找到该规范具体的实现类名，然后装载实例化，完成该模块的注入。
+
+![](https://img2024.cnblogs.com/blog/1694759/202402/1694759-20240219113855135-388473227.png)
 
 
 # 6.Spring SPI机制
