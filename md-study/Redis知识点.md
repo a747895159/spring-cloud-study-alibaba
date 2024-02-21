@@ -32,3 +32,23 @@ https://www.cnblogs.com/crazymakercircle/p/14731826.html
 
 
 
+#2. 如何解决缓存热点（热key）问题？
+
+- 本地缓存caffeine + 分布式缓存redis.以下是多级缓存注解事项：
+
+	- 两级缓存数据一致性问题？
+		+ 后台保存数据后，写入Redis缓存，同时发布MQ消息。业务应用接收到消息后删除本地缓存。
+		+ 当流量请求到达时，业务应用若本地缓存不存在，则从 Redis 中加载缓存至本地缓存。
+	- 本地缓存要解决JVM内存问题，不适合存储大量数据,需要对缓存大小进行评估。
+	- 本地缓存数据应设置效期和合理的淘汰策略,建议使用caffeine,策略是LRU+LFU，既具有较好的时间局部性，又具有大部分数据场景。
+	
+	```
+	Cache<String, Map<Integer, String>> cache = Caffeine.newBuilder().expireAfterWrite(5, TimeUnit.MINUTES).maximumSize(500).build()
+	
+	```
+    - 考虑设置定时任务来同步缓存，以防止极端情况下数据丢失。
+    - 当应用重启时，本地缓存会失效，因此需要注意加载分布式缓存的时机。
+    - 当本地缓存失效时，需要使用 synchronized 进行加锁，确保由一个线程加载 Redis 缓存，避免并发更新。
+    - 如果业务能够接受短时间内的数据不一致，那么本地缓存更适用于读取场景。
+    
+
