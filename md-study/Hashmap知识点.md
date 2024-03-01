@@ -14,8 +14,12 @@
 
 # 3.HashMap中put的过程
 
-	![](https://img2020.cnblogs.com/blog/1694759/202108/1694759-20210826122959476-229662677.png)
+![](https://img2020.cnblogs.com/blog/1694759/202108/1694759-20210826122959476-229662677.png)
 
+
+# 3.1HashMap中resize()的过程
+
+![](https://img-blog.csdnimg.cn/7a70e0392bca4670aa9fa67771e26c60.png)
 
 
 # 4.红黑树特点
@@ -73,7 +77,7 @@
 	![](https://img2020.cnblogs.com/blog/1694759/202108/1694759-20210826110903191-1554787732.png)
 
 
-# 8.JDK8 中什么场景会是使用 synchronized ？
+# 8.JDK8中 ConcurrentHashMap什么场景会是使用 synchronized ？
 
 + 先看下putVal 原代码
 
@@ -150,11 +154,7 @@
 + 注意synchronized上锁的对象,请记住,synchronized是靠对象的对象头和此对象对应的monitor来保证上锁的,也就是对象头里的重量级锁标志指向了monitor,而monitor呢,内部则保存了一个当前线程,也就是抢到了锁的线程.
 + ②处（已经锁到Node节点）出现并发争抢的可能性一般不高，哪怕有争抢，基于synchronized的轻量级锁(30-50次自旋)基本能拿到锁，不会升级为重量级锁。而当前线程也不会挂起，线程减少了挂起和唤醒的上线文切换的开销。
 + ②处也可以换成 ReentrantLock 也可以实现锁细化。但是lock 不会自旋，拿不到锁 就会挂起，这样就会多处线程上线文切换问题。当然也可以用tryLock，但是tryLock时间又不太好定义。
-+ **如果是线程并发量不大的情况下,那么Synchronized因为自旋锁,偏向锁,轻量级锁的原因,不用将等待线程挂起,偏向锁甚至不用自旋,所以在这种情况下要比ReentrantLock高效**
++ **如果是线程并发量不大的情况下,那么Synchronized因为自旋锁,偏向锁,轻量级锁的原因,不用将等待线程挂起,偏向锁甚至不用自旋,所以在这种情况下要比ReentrantLock高效**。
 
-
-
-
-
-
+![](https://img-blog.csdnimg.cn/1424df0149644c54891ebc96eec38880.png)
 

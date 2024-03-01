@@ -9,12 +9,12 @@ https://www.cnblogs.com/crazymakercircle/p/14731826.html
 - Canal+RocketMQ同步MySQL，由消息统一进行删除缓存。
 
 
-# Redisson锁简介
+# 2.Redisson锁简介
 - Redisson是一个在Redis的基础上实现的Java驻内存数据网格（In-Memory Data Grid）。它不仅提供了一系列的分布式的Java常用对象，还实现了可重入锁（Reentrant Lock）、公平锁（Fair Lock、联锁（MultiLock）、 红锁（RedLock）、 读写锁（ReadWriteLock）等，还提供了许多分布式服务。
 - RLock结构 key就是UUID+threadId，hash结构的value就是重入值，在分布式锁时，这个值为1（Redisson还可以实现重入锁，那么这个值就取决于重入次数了）
 
 
-# Redis中hash表扩容原理,与HashMap 的区别？
+# 3.Redis中hash表扩容原理,与HashMap 的区别？
 - 从数据结构的角度来看，redis的dict和java的HashMap很像，区别在于rehash：HashMap在resize时是一次性拷贝的，然后使用新的数组，而dict维持了2个dictht，平常使用ht[0]，一旦开始rehash则使用ht[0]和ht[1]，rehash被分摊到每次的dictAdd和dictFind等操作中。
 
 - 当hash内部的元素比较拥挤时(hash碰撞比较频繁)，就需要进行扩容。扩容需要申请新的两倍大小的数组，然后将所有的键值对重新分配到新的数组下标对应的链表中(rehash)。如果hash结构很大，比如有上百万个键值对，那么一次完整rehash的过程就会耗时很长。这对于单线程的Redis里来说有点压力山大。所以Redis采用了渐进式rehash的方案。它会同时保留两个新旧hash结构，在后续的定时任务以及hash结构的读写指令中将旧结构的元素逐渐迁移到新的结构中。这样就可以避免因扩容导致的线程卡顿现象。
@@ -32,7 +32,7 @@ https://www.cnblogs.com/crazymakercircle/p/14731826.html
 
 
 
-#2. 如何解决缓存热点（热key）问题？
+# 4.如何解决缓存热点（热key）问题？
 
 - 本地缓存caffeine + 分布式缓存redis.以下是多级缓存注解事项：
 
@@ -52,14 +52,14 @@ https://www.cnblogs.com/crazymakercircle/p/14731826.html
     - 如果业务能够接受短时间内的数据不一致，那么本地缓存更适用于读取场景。
     
 
-#3. Redis集群用的是什么方式，怎么做动态扩容?
+# 5.Redis集群用的是什么方式，怎么做动态扩容?
 
 Redis 集群使用的方式是主从复制，其中一个主节点负责写入数据，从节点负责备份数据。
 迁移过程中，主节点会将部分槽和数据复制到新的从节点上，直到新节点上的数据与主节点上的数据一致。此时，新节点就可以加入到 Redis 集群中，开始提供读写服务。
 保证集群在运行过程中不停机，并且能够快速响应节点故障和负载增加的情况。
 
 
-#4. 关于 redis，说一下 sorted set 底层原理
+# 6.关于 redis，说一下 sorted set 底层原理
 
 Redis 的 sorted set 是一种有序集合，它的底层实现是使用了 **跳跃表（Skip List）和哈希表（Hash Table）** 这两种数据结构。跳跃表是一种类似于链表的数据结构，但是它在每个节点上增加了多个指针，可以快速地跳过一些节点，从而提高了查找效率。而哈希表则是一种以键值对形式存储数据的数据结构，可以快速地进行数据的插入、查找和删除操作。
 在 Redis 的 sorted set 中，每个元素都有一个分数（score），根据分数的大小来进行排序。使用跳跃表可以快速地进行分数的比较和排序，而使用哈希表可以快速地进行元素的查找和删除操作。同时，Redis 还使用了压缩列表（Ziplist）来优化存储空间，对于一些小的 sorted set，它们的元素可以被存储在一个压缩列表中，从而减少了内存的使用。
@@ -74,7 +74,7 @@ sorted set 底层的原理如下：
 总之，sorted set 底层的原理是基于哈希表和分数计算实现的，它支持添加、删除、范围查询和迭代等操作。由于 sorted set 可以快速地进行范围查询和排序操作，因此在实际应用中被广泛使用。
 
 
-###5. 说一下 mongoDB
+# 7.说一下 mongoDB
 
 MongoDB是一种NoSQL数据库，它采用文档存储方式，支持动态查询和索引。下面是MongoDB的特性、优缺点和应用。
 
@@ -105,3 +105,17 @@ MongoDB是一种NoSQL数据库，它采用文档存储方式，支持动态查�
 - **大数据分析** ：MongoDB支持MapReduce，可以用于大数据分析。
 - **日志处理** ：MongoDB可以用于日志处理和分析。
 - **移动应用** ：MongoDB可以用于移动应用的数据存储和查询。
+
+# 8.分布式限流网关组件
+
+**使用Redis+Lua来开发**,无论是Nginx外部网关还是Zuul内部网关，都可以使用Redis+Lua限流组件.理论上，接入层的限流有多个维度：
+（1）用户维度限流：在某一时间段内只允许用户提交一次请求，比如可以采取客户端IP或者用户ID作为限流的key。
+（2）商品维度的限流：对于同一个抢购商品，在某个时间段内只允许一定数量的请求进入，可以采取秒杀商品ID作为限流的key。
+
+什么时候用nginx限流：
+	用户维度的限流，可以在ngix 上进行，因为使用nginx限流内存来存储用户id，比用redis 的key，来存储用户id，效率高。
+什么时候用redis+lua分布式限流：
+	商品维度的限流，可以在redis上进行，不需要大量的计算访问次数的key，另外，可以控制所有的接入层节点的访问秒杀请求的总量。
+
+
+

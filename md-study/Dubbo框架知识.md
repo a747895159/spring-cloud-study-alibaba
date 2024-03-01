@@ -9,13 +9,13 @@
 # 2.什么是Dubbo
 
 - 是一款高性能、轻量级的开源 Java RPC 框架。
-	面向接口代理的高性能RPC调用。
-	智能容错和负载均衡。
-	服务自动注册和发现。
-	高度可扩展能力。
-	运行期流量调度。
-	可视化的服务治理与运维。
-	
+  面向接口代理的高性能RPC调用。
+  智能容错和负载均衡。
+  服务自动注册和发现。
+  高度可扩展能力。
+  运行期流量调度。
+  可视化的服务治理与运维。
+
 - 默认使用的序列化方式是 hession2。代码无侵入(Dubbo 基于Spring 的 Schema 扩展进行加载)，基于SPI 机制的实现。
 
 - 提供各种负载均衡策略：权重随机选择(默认的)、最小活跃数(处理越快、性能越好、活跃数越少)、一致性Hash负载、加权轮询负载。
@@ -52,11 +52,16 @@
 # 5.JDK SPI机制
 
 - SPI：是一种将服务接口与服务实现分离以达到解耦可拔插、大大提升了程序可扩展性的机制。避免代码污染,实现某块可插拔。
+
 - 缺点：ServiceLoader只提供了遍历的方式来获取目标实现类，没有提供按需加载的方法。只能一次获取所有的接口实例，不支持排序，随着新的实例加入，会出现排序不稳定的情况。
+
 - 规范流程：
-	- 1. 制定统一的规范（比如 java.sql.Driver）
+
+  - 1. 制定统一的规范（比如 java.sql.Driver）
+
     - 2. 服务提供商提供这个规范具体的实现，在自己jar包的META-INF/services/目录里创建一个以服务接口命名的文件，内容是实现类的全命名（比如：com.mysql.jdbc.Driver）。
-	- 3. 平台引入外部模块的时候，就能通过该jar包META-INF/services/目录下的配置文件找到该规范具体的实现类名，然后装载实例化，完成该模块的注入。
+
+  - 3. 平台引入外部模块的时候，就能通过该jar包META-INF/services/目录下的配置文件找到该规范具体的实现类名，然后装载实例化，完成该模块的注入。
 
 ![](https://img2024.cnblogs.com/blog/1694759/202402/1694759-20240219113855135-388473227.png)
 
@@ -64,11 +69,13 @@
 # 6.Spring SPI机制
 
 - Spring的SPI机制主要体现在SpringBoot中，SpringBoot的启动包含new SpringApplication和执行run方法两个过程。
+
 - SpringFactoriesLoader 类 获取类路径下所有META-INF/spring.factories
+
 - 将文件中 EnableAutoConfiguration的路径通过反射机制 全部自动加载
 
-	![](https://img2020.cnblogs.com/blog/1694759/202108/1694759-20210821184926251-1939833322.png)
-    
+  ![](https://img2020.cnblogs.com/blog/1694759/202108/1694759-20210821184926251-1939833322.png)
+
     ![](https://img2022.cnblogs.com/blog/1694759/202208/1694759-20220817134025106-452912629.png)
 
 ```
@@ -99,18 +106,21 @@ public static List<String> loadFactoryNames(Class<?> factoryClass, ClassLoader c
 ```
 
 - 对比JDK  ServiceLoader：
-	- 1.都是XXXLoader。命名格式都一样。
-	- 2. 一个是加载 META-INF/services/ 目录下的配置；一个是加载 META-INF/spring.factories 固定文件的配置。思路都一样。
-	- 3. 两个都是利用ClassLoader和ClassName来完成操作的。不同的是Java的ServiceLoader加载配置和实例化都是自己来实现，并且不能按需加载；SpringFactoriesLoader既可以单独加载配置然后按需实例化也可以实例化全部。
-	
+  - 1.都是XXXLoader。命名格式都一样。
+  - 2. 一个是加载 META-INF/services/ 目录下的配置；一个是加载 META-INF/spring.factories 固定文件的配置。思路都一样。
+  - 3. 两个都是利用ClassLoader和ClassName来完成操作的。不同的是Java的ServiceLoader加载配置和实例化都是自己来实现，并且不能按需加载；SpringFactoriesLoader既可以单独加载配置然后按需实例化也可以实例化全部。
+
 # 7.如何实现自定一个Spring-Boot-Starter ?
 
 - 1. 新建一个只有pom的starter工程，引入写好的自动配置模块。
+
 - 2. 自动配置模块配置 spring.factories 文件，格式如上。
+
 - 3. 具体实现自动配置逻辑。
+
 - 4.当SpringBoot启动加载配置类的时候，就会把这些第三方的配置一起加载。无须用户手动配置以及包扫描路径问题。
 
-	![](https://img2020.cnblogs.com/blog/1694759/202108/1694759-20210821190611886-252589774.png)
+  ![](https://img2020.cnblogs.com/blog/1694759/202108/1694759-20210821190611886-252589774.png)
 
 
 
@@ -129,7 +139,7 @@ public static List<String> loadFactoryNames(Class<?> factoryClass, ClassLoader c
 # 9.dubbo底层实现原理
 
 - 1.Dubbo缺省协议采用单一长连接和NIO异步通讯，适合于小数据量大并发的服务调用，以及服务消费者机器数远大于服务提供者机器数的情况。
- 客服端一个线程调用远程接口，生成一个唯一的ID（比如一段随机字符串，UUID等），Dubbo是使用AtomicLong从0开始累计数字的
+  客服端一个线程调用远程接口，生成一个唯一的ID（比如一段随机字符串，UUID等），Dubbo是使用AtomicLong从0开始累计数字的
 - 2.将打包的方法调用信息（如调用的接口名称，方法名称，参数值列表等），和处理结果的回调对象callback，全部封装在一起，组成一个对象object
 - 3.向专门存放调用信息的全局ConcurrentHashMap里面put(ID, object)
 - 4.将ID和打包的方法调用信息封装成一对象connRequest，使用IoSession.write(connRequest)异步发送出去
@@ -158,64 +168,19 @@ RpcContext.getContext().setAttachment("index", "1"); // 隐式传参，后面的
 
 
 # 12.RPC 框架的实现原理，及 RPC 架构组件详解
+
 1.从服务提供者的角度看：当提供者服务启动时，需要自动向注册中心注册服务；
 2.当提供者服务停止时，需要向注册中心注销服务；
 3.提供者需要定时向注册中心发送心跳，一段时间未收到来自提供者的心跳后，认为提供者已经停止服务，从注册中心上摘取掉对应的服务。
 4.从调用者的角度看：调用者启动时订阅注册中心的消息并从注册中心获取提供者的地址；
 5.当有提供者上线或者下线时，
 
+# 13.Dubbo比Feign快的原因
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+- **线程IO模型**：Dubbo是基于Netty的非阻塞IO + Reactor 反应堆线程模型的 异步RPC框架。 而feign 是同步IO 、阻塞模式的同步 RPC框架。Reactor模型减少了线程间的切换和同步开销，提高了系统的响应速度和吞吐量。
+- 通信协议：Dubbo 是TCP 层的传输协议,保持了长连接。Feign是应用层 的HTTP传输协议，HTTP是有些冗余的头部报文。
+- 序列化方式：Dubbo支持多种序列化方式，如Hessian2、Kryo、FST等，这些序列化方式在性能方面通常优于Feign使用的JSON序列化方式。
+- 高效的数据处理：Dubbo底层使用Netty，提供了高效的数据缓冲区和字节处理机制，使得数据的读写和处理更加快速和高效。
 
 
 
