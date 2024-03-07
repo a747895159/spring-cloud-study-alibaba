@@ -7,3 +7,5 @@
 
 # 4.[RocketMQ 版本](http://rocketmq.apache.org/release_notes/)
 
+# 5.[dubbo项目搭建](https://blog.csdn.net/crazymakercircle/article/details/129155538)
+

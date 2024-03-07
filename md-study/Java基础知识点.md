@@ -84,6 +84,14 @@ https://learning.snssdk.com/feoffline/toutiao_wallet_bundles/toutiao_learning_wa
     - PriorityQueue实现了Queue接口，但它并不是一个队列，也不是按照“先入先出”的顺序删除元素的。PriorityQueue是一个堆，每次调用函数remove或poll都将删除位于堆顶的元素。
 
 
+# 6.布隆过滤器与BitMap(位图)
+
+布隆过滤器(Bloom Filter):  相当于是一个不太精确的set集合,判断元素是否存在，存在误判率。**存在 不一定存在，不存在 一定不存在**. 误判率随着集合中元素数量的增加而增加，但可以通过增加位数组的大小和哈希函数的数量来降低误判率。
+位图(BitMap): 用于快速查找和存储大量数据的数据结构,非常适合于大规模数据的快速查找和去重.
+
+![参考网址](https://www.cnblogs.com/a747895159/articles/18030189)
+
+
 
 
 
