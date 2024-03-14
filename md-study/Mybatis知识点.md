@@ -22,3 +22,6 @@ Mybatis在处理${}时，就是把${}替换成变量的值。用于传入数据�
 - 编写插件：实现Mybatis的Interceptor接口并复写intercept()方法，然后在给插件编写注解，指定要拦截哪一个接口的哪些方法即可，记住，别忘了在配置文件中配置你编写的插件。
 - 举例：PageHelper、mybatis-plus 增加处理等框架都是这种实现
 
+# 5.resultType 与 resultMap 的区别？
+1）类的名字和数据库相同时，可以直接设置 resultType 参数为 Pojo 类
+2）若不同，需要设置 resultMap 将结果名字和 Pojo 名字进行转换

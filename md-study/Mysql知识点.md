@@ -26,7 +26,8 @@
 - 查询日志（general log）:记录所有对数据库请求的信息
 - 重做日志（redo log）: 记录更新的值，事务提交后生效。固定大写、循环写。以物理方式记录了对数据库页的更改。
 - 回滚日志（undo log）: 记录原来的值，事务回滚时，用于恢复原来的值。主要用于事务的回滚与MVCC。
-- 二进制日志（binlog）:用于数据库备份、主从复制，从库利用主库上的binlog进行重播，实现主从同步
+- 二进制日志（binlog）:用于数据库备份、主从复制，从库利用主库上的binlog进行重播，实现主从同步。
+    - 通过sync_binlog控制二进制日志同步磁盘信息：为0时，mysql不做控制，依赖Filesystem自行决定什么时候来做同步，或者cache满了之后才同步到磁盘；为n时，代表n次事务提交之后进行强制刷盘。
 - 错误日志（errorlog）:
 - 中继日志（relay log）: 主从复制中，暂存主库Binlog日志的
 
@@ -109,6 +110,8 @@
 * Gap Lock（间隙锁）：锁住一段**左开右开** 的区间.(10,20)
 * Next-key Lock（临键锁）：锁住一段**左开右闭** 的区间。等于 Gap Lock间隙锁+Record Lock记录锁。(10,20]
 
+![间隙锁与临键锁加锁分析](https://www.cnblogs.com/a747895159/articles/18066182)
+
 # 7.聚集索引与非聚集索引
 
 - 聚集索引： 数据行的物理顺序与列值（一般是主键的那一列）的逻辑顺序相同，一个表中只能拥有一个聚集索引,一般指主键。
@@ -151,6 +154,8 @@
 - 在系统恢复期间，InnoDB会检查double write buffer，并尝试从中恢复损坏的数据页。如果double write buffer中的数据是完整的，那么InnoDB就会用double write buffer中的数据来更新损坏的页。否则，如果double write buffer中的数据不完整，InnoDB也有可能丢弃buffer内容，重新执行那条redo log以尝试恢复数据。
 
 ![](https://img-blog.csdnimg.cn/29cbdc9584af4279a89436948e26b4e4.png)
+
+- 每个InnoDB表都会对应一个或多个**.ibd文件**，其中包含表的数据（包括表的行数据）和索引信息（包括表的主键索引和辅助索引），还包含MVCC相关数据
 
 # 11.mysql集群原理及方案
 

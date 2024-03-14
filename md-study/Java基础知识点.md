@@ -86,10 +86,23 @@ https://learning.snssdk.com/feoffline/toutiao_wallet_bundles/toutiao_learning_wa
 
 # 6.布隆过滤器与BitMap(位图)
 
-布隆过滤器(Bloom Filter):  相当于是一个不太精确的set集合,判断元素是否存在，存在误判率。**存在 不一定存在，不存在 一定不存在**. 误判率随着集合中元素数量的增加而增加，但可以通过增加位数组的大小和哈希函数的数量来降低误判率。
-位图(BitMap): 用于快速查找和存储大量数据的数据结构,非常适合于大规模数据的快速查找和去重.
+- 布隆过滤器(Bloom Filter):  相当于是一个不太精确的set集合,判断元素是否存在，存在误判率。**存在 不一定存在，不存在 一定不存在**. 
+```
+    String[] dataArr = {"a1", "b", "c", "d", "五"};
+    //谷歌布隆过滤器（使用的过滤器，预期数据量，误判率越小越精准）
+    BloomFilter<String> bloomFilter = BloomFilter.create(Funnels.stringFunnel(Charsets.UTF_8), 10000, 0.01);
+    Arrays.stream(dataArr).forEach(bloomFilter::put);
+    // 返回 true
+    System.out.println(bloomFilter.mightContain("五"));
+    // 返回 false
+    System.out.println(bloomFilter.mightContain("是"));
+```
+
+- 位图(BitMap): 用于快速查找和存储大量数据的数据结构,非常适合于大规模数据的快速查找和去重.
 
 ![参考网址](https://www.cnblogs.com/a747895159/articles/18030189)
+
+
 
 
 
