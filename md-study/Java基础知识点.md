@@ -12,8 +12,7 @@ https://learning.snssdk.com/feoffline/toutiao_wallet_bundles/toutiao_learning_wa
  
 # 2.高性能队列Disruptor
  
-简书介绍：https://www.jianshu.com/p/bad7b4b44e48
-        https://www.jianshu.com/p/1c0013e9bbad
+简书介绍：https://www.cnblogs.com/a747895159/articles/18111284
 
 - Disruptor 是一款高性能的有界内存队列，目前应用非常广泛，Log4j2、SpringMessaging、HBase、Storm 都用到了 Disruptor，主要有：
 	- 内存分配更加合理，使用 RingBuffer 数据结构，数组元素在初始化时一次性全部创建，提升缓存命中率；对象循环利用，避免频繁 GC。
@@ -47,7 +46,7 @@ https://learning.snssdk.com/feoffline/toutiao_wallet_bundles/toutiao_learning_wa
             }
       ```
 	   
-	- 采用无锁算法，避免频繁加锁、解锁的性能消耗。
+	- 采用**RingBuffer**循环缓冲区，避免了传统队列中的锁竞争问题，避免频繁加锁、解锁的性能消耗。
 	- 支持批量消费，消费者可以无锁方式消费多个消息。
 
 # 3.java8新增的stream api迭代次数？
