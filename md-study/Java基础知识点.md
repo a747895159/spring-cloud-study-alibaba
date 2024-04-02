@@ -77,7 +77,7 @@ https://learning.snssdk.com/feoffline/toutiao_wallet_bundles/toutiao_learning_wa
 - 使用PriorityBlockingQueue 作为 线程池的任务队列。
 - 提交的任务 具备 排序能力。
 
-# 5.1 PriorityBlockingQueue 队列是无解的，怎么实现数量限制？
+# 5.1 PriorityBlockingQueue 队列是无界的，怎么实现数量限制？
 - PriorityBlockingQueue是无界的，它的offer方法永远返回true。会带来OOM风险、最大线程数失效、拒绝策略失效。
 - 可以继承PriorityBlockingQueue ， 重写一下这个类的offer方法，如果元素超过指定数量直接返回false，否则调用原来逻辑。
     - PriorityQueue在默认情况下是一个最小堆，如果使用最大堆调用构造函数就需要传入 Comparator 改变比较排序的规则。
@@ -102,6 +102,33 @@ https://learning.snssdk.com/feoffline/toutiao_wallet_bundles/toutiao_learning_wa
 
 ![参考网址](https://www.cnblogs.com/a747895159/articles/18030189)
 
+
+# 7.ThreadLocal内存泄露的原因？要如何避免？
+
+`弱引用解决的是ThreadLocal对象的内存泄露问题，但value还存在内存泄露的风险。`
+- 内存泄露的原因：
+
+> 由于ThreadLocalMap和线程的生命周期是一致的，当线程资源长期不释放，`即使ThreadLocal本身由于弱引用机制已经被回收掉了，但value还是驻留在线程的ThreadLocalMap的Entry中`。即存在key为null，但value却有值的无效Entry，导致内存泄漏。
+
+- ThreadLocal自身采取的措施：
+
+> 但实际上，ThreadLocal内部已经为我们做了一定的防止内存泄漏的工作。ThreadLocalMap提供了一个expungeStaleEntry方法，该方法在`每次调用ThreadLocal的get、set、remove方法时都会执行清理工作`，即ThreadLocal内部已经帮我们做了对key为null的Entry的清理工作：擦除Entry(置为null)，同时检测整个Entry数组将key为null的Entry一并擦除，然后重新调整索引。
+>
+> 但是必须需要调用这三个方法才会触发清理，很可能我们使用完之后就不再做任何操作了(set/get/remove)，这样就不会触发内部的清理工作。
+
+`开发人员需要注意： 所以，通常建议每次使用完ThreadLocal后，立即调用remove方法`。
+
+
+# 7.1为什么ThreadLocalMap中key被设计成弱引用类型？
+
+> key`设计为弱引用`是为了尽最大努力避免内存泄漏，`解决的是ThreadLocal对象的内存泄露问题`。
+> ThreadLocal的设计者考虑到了某些线程的生命周期较长，比如线程池中的线程。由于存在Thread -> ThreadLocalMap -> Entry这样一条强引用链，如果key不设计成弱引用类型，是强引用的话，key就一直不会被GC回收，一直不会是null，Entry就不会被清理。
+> (ThreadLocalMap根据key是否为null来判断是否清理Entry。因为key为null时，引用的ThreadLocal实例不可达会被回收。value又只能通过ThreadLocal的方法来访问，此时相当于value也没用处了。所以，可以根据key是否为null来判断是否清理Entry。)
+
+# 7.2 ThreadLocal继承性问题？如何解决?
+
+ThreadLocal不支持子线程继承，可以使用JDK中的InheritableThreadLocal来解决继承性问题。
+对于线程池等场景，可以使用淘宝技术部哲良实现的TransmittableThreadLocal.
 
 
 
