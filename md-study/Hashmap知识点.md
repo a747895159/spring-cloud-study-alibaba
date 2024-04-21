@@ -84,7 +84,7 @@
     
        // counterCells 数组一旦初始化，size 的变化将不再尝试写入 baseCount
        // 可以将 size 的变化写入数组中的任意元素
-       // 可扩容，长度保持为 2 的幂,最大机器的处理器数为止。
+       // 可扩容，长度保持为 2 的幂
        private transient volatile CounterCell[] counterCells;
     ```
     - CounterCell 使用了@Contended的注解解决伪共享问题。使用这个注解进行填充缓存行优化(将8个字节的Long填充成64字节，CPU Cache Line的大小通常被设定为64字节)，提高多线程并发性能。
