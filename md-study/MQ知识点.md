@@ -75,9 +75,9 @@ public class PullMessageService extends ServiceThread {
     - 标记该PullRequset为drop
     - 10s后再更新并持久化消费offset；再通知Rebalance移除该MessageQueue
 
+- 每次从消费进度 拉取32个队列消息拉取成功后，将消息按照消费数(默认为1)分批放入消费者线程池中。
 
 ```
-- 每次从消费进度 拉取32个队列消息拉取成功后，将消息按照消费数(默认为1)分批放入消费者线程池中。
 public void submitConsumeRequest(final List<MessageExt> msgs,final ProcessQueue processQueue,final MessageQueue messageQueue,final boolean dispatchToConsume) {
    //用户消费队列数 默认1。 msgs的size 默认是32 
    final int consumeBatchSize = this.defaultMQPushConsumer.getConsumeMessageBatchMaxSize();
@@ -183,9 +183,56 @@ public void processConsumeResult(final ConsumeConcurrentlyStatus status,final Co
     }
 ```
 
-- DefaultMQPushConsumer  由系统控制读取操作，收到消息后自动调用用户线程的处理方法来处理
-- DefaultMQPullConsumer  读取操作中的大部分功能由使用者自主控制，要注意Offset的保存与同步。
+- DefaultMQPushConsumer  由系统控制读取操作，收到消息后自动调用用户线程的处理方法来处理。
+    - 消费者流控；拉取的消息，放在另一个队列 messageQueue 缓存，拉取之前，会进行流控检查，如果这个队列满了（>1000个消息或者 >100M内存、消息跨度超过consumeConcurrentlyMaxSpan >2000） 则延迟50ms再拉取。下一次执行拉取之前，同样也会进行流控检查
+    - 应用程序对消息的拉取过程参与度不高，可控性不足，仅仅提供消息监听器的实现。
 
+- DefaultMQPullConsumer  读取操作中的大部分功能由使用者自主控制，要注意Offset的保存与同步。发送到broker的提交位移永远都是0，所以broker无法记录有效位移，需要程序自己记录和控制提交位移。 
+    - 应用程序对消息的拉取过程参与度高，由可控性高，可以自主决定何时进行消息拉取，从什么位置offset拉取消息
+
+```
+DefaultMQPullConsumer consumer = new DefaultMQPullConsumer("please_rename_unique_group_name");  
+consumer.setNamesrvAddr("localhost:9876");  
+consumer.start();  
+  
+// 假设你有一个方法来获取存储的offset，这里用0作为示例  
+long offset = 0;  
+  
+try {  
+    MessageQueue mq = new MessageQueue("TopicTest", "BrokerName", 0);  
+    PullResult pullResult = consumer.pullBlockIfNotFound(mq, "*", offset, 32);  
+      
+    switch (pullResult.getPullStatus()) {  
+        case FOUND:  
+            List<MessageExt> msgFoundList = pullResult.getMsgFoundList();  
+            // 处理消息...  
+              
+            // 更新offset，这里假设每条消息都成功消费，将offset更新为下一条消息的offset  
+            if (!msgFoundList.isEmpty()) {  
+                MessageExt lastMsg = msgFoundList.get(msgFoundList.size() - 1);  
+                offset = lastMsg.getQueueOffset() + 1;  
+                  
+                // 存储新的offset，这里用打印作为示例  
+                System.out.println("Updated offset to: " + offset);  
+                // 实际情况下，你需要将这个offset存储到数据库或本地文件  
+            }  
+            break;  
+        case NO_MATCHED_MSG:  
+            break;  
+        case NO_NEW_MSG:  
+            break;  
+        case OFFSET_ILLEGAL:  
+            break;  
+        default:  
+            break;  
+    }  
+} catch (Exception e) {  
+    e.printStackTrace();  
+}  
+  
+consumer.shutdown();
+
+```
 
 # 5.Rocketmq怎么保证队列完全顺序消费？
 
@@ -257,7 +304,42 @@ public void processConsumeResult(final ConsumeConcurrentlyStatus status,final Co
       +  A.消息堆积数量:如果消息消费处理队列中的消息条数超过1000条会触发消费端的流控，其具体做法是放弃本次拉取动作，并且延迟50ms后将放入该拉取任务放入到pullRequestQueue中，每1000次流控会打印一次消费端流控日志。
       - B.消息堆积大小：如果处理队列中堆积的消息总内存大小超过100M，同样触发一次流控。
 
+```
+public void start() throws MQClientException {
 
+    synchronized (this) {
+        switch (this.serviceState) {
+            case CREATE_JUST:
+                this.serviceState = ServiceState.START_FAILED;
+                // If not specified,looking address from name server
+                if (null == this.clientConfig.getNamesrvAddr()) {
+                    this.mQClientAPIImpl.fetchNameServerAddr();
+                }
+                //启动客户端Netty，可以访问外部
+                this.mQClientAPIImpl.start();
+                //一些列的定时任务： 1.获取nameServer地址;2.更新topic队列信息定时任务;3.清理下线Broker信息，向所有Broker发送心跳;4.持久化消费者位移定时任务;5.启动调整消费者消费消息线程个数(暂未实现)的定时任务；
+                this.startScheduledTask();
+                // 启动拉去消息服务 pullMessageService
+                this.pullMessageService.start();
+                // 启动再平衡服务rebalanceService
+                this.rebalanceService.start();
+                // 设置生产者product相关信息
+                this.defaultMQProducer.getDefaultMQProducerImpl().start(false);
+                log.info("the client factory [{}] start OK", this.clientId);
+                this.serviceState = ServiceState.RUNNING;
+                break;
+            case START_FAILED:
+                throw new MQClientException("The Factory object[" + this.getClientId() + "] has been created before, and failed.", null);
+            default:
+                break;
+        }
+    }
+}
+	
+```
+
+
+![](https://img2024.cnblogs.com/blog/1694759/202404/1694759-20240429101941894-1113414868.png)
 
 
 # 9.主从同步(HA):
@@ -309,7 +391,7 @@ RocketMQ事务消息的实现原理是类似基于二阶段提交与事务状态
 
 - 7.消息回溯
 	+ Kafka理论上可以按照Offset来回溯消息。
-	+ RocketMQ支持按照时间来回溯消息，精度毫秒，例如从一天之前的某时某分某秒开始重新消费消息，典型业务场景如consumer做订单分析，但是由于程序逻辑或者依赖的系统发生故障等原因，导致今天消费的消息全部无效，需要重新从昨天零点开始消费，那么以时间为起点的消息重放功能对于业务非常有帮助。
+	+ RocketMQ支持按照Offset和时间来回溯消息，精度毫秒，例如从一天之前的某时某分某秒开始重新消费消息，典型业务场景如consumer做订单分析，但是由于程序逻辑或者依赖的系统发生故障等原因，导致今天消费的消息全部无效，需要重新从昨天零点开始消费，那么以时间为起点的消息重放功能对于业务非常有帮助。
 	
 - 8.RocketMQ特有
 	+ 支持tag
@@ -352,7 +434,7 @@ ConsumeQueue文件由两部分组成：索引文件（Index File）和位图文�
 
 ConsumeQueue中的消息格式如下：
 
-```java
+```
 +---------------------+---------------------+
 |       Offset        |     CommitLogOffset |
 |       (8字节)       |       (8字节)        |
