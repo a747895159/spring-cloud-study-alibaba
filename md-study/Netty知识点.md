@@ -1,28 +1,5 @@
 
-
-
-
 https://www.toutiao.com/i6739473228365824526/?timestamp=1628307768&app=news_article_lite&use_new_style=1&req_id=20210807114247010135164071482DB9C3&share_token=56b52e6e-6aa1-4d72-87ed-22d312e79867&group_id=6739473228365824526
-
-
-
-
-
-
-
-https://www.toutiao.com/i6750653102128382476/?timestamp=1628307384&app=news_article_lite&use_new_style=1&req_id=202108071136230101351690753A2D6CEA&share_token=b64d7ce0-03b1-462d-a5bf-bcbf63f44646&group_id=6750653102128382476
-
-
-
-
-
-
-
-https://www.toutiao.com/i6816271513050677771/?timestamp=1626828239&app=news_article_lite&use_new_style=1&req_id=202107210843580101351690863F2CDC3A&share_token=bdcd54cd-89a8-4098-a51a-c16c158cf001&group_id=6816271513050677771
-
-
-
-
 
 APOLLO动态线程池：  
 
@@ -46,4 +23,52 @@ sun.misc.Unsafe.copyMemory() 的调用，背后的实现原理与 memcpy() 类�
 - Selector的空轮询BUG，臭名昭著的epoll bug，是 JDK NIO的BUG。若结果为空，在没有wakeup或线的消息时，则发生空循环，CPU使用率100%。
     - 1、对Selector的select操作周期进行统计，每完成一次空的select操作进行一次计数，若在某个周期内连续发生N次(默认为512)空轮询，则触发了epoll死循环bug。
     - 2、重建Selector，判断是否是其他线程发起的重建请求，若不是则将原SocketChannel从旧的Selector上去除注册，重新注册到新的Selector上，并将原来的Selector关闭。
+
+# 3.Netty的主从多线程模型
+Netty 的线程模型基于主从 Reactor 多线程，借用了 MainReactor 和 SubReactor 的结构。但是实际实现上 SubReactor 和 Worker 线程在同一个线程池中：
+```
+    // 创建工作线程组,每次创建NioEventLoopGroup时 默认启动了电脑可用线程数的两倍, 可以指定线程数
+    NioEventLoopGroup workerGroup = new NioEventLoopGroup();
+    final ServerBootstrap serverBootstrap = new ServerBootstrap();
+    // 组装NioEventLoopGroup
+    serverBootstrap.group(boosGroup, workerGroup)
+            // 设置channel类型为NIO类型
+            .channel(NioServerSocketChannel.class)
+            // 设置连接配置参数
+            .option(ChannelOption.SO_BACKLOG, 1024)
+            .childOption(ChannelOption.SO_KEEPALIVE, true)
+            .childOption(ChannelOption.TCP_NODELAY, true)
+            // 配置入站、出站事件handler
+            .childHandler(new ChannelInitializer<NioSocketChannel>() {
+                @Override
+                protected void initChannel(NioSocketChannel ch) {
+                    // 配置入站、出站事件channel.  添加更多的 ChannelHandler
+                    ch.pipeline().addLast("idleStateHandler", new IdleStateHandler(5, 0, 0));
+                    ch.pipeline().addLast("idleStateTrigger", new ServerIdleStateTrigger());
+                    ch.pipeline().addLast("frameDecoder", new LengthFieldBasedFrameDecoder(Integer.MAX_VALUE, 0, 4, 0, 4));
+                    ch.pipeline().addLast("frameEncoder", new LengthFieldPrepender(4));
+                    ch.pipeline().addLast("decoder", new StringDecoder());
+                    ch.pipeline().addLast("encoder", new StringEncoder());
+                    ch.pipeline().addLast("bizHandler", new ServerBizHandler());
+                }
+            });
+    // 绑定端口
+    serverBootstrap.bind(8080).addListener(future -> {
+        if (future.isSuccess()) {
+            System.out.println("绑定成功!");
+        } else {
+            System.err.println("绑定失败!");
+        }
+    });
+```
+
+上面代码中的 bossGroup 和 workerGroup 是 Bootstrap 构造方法中传入的两个对象，这两个 group 均是线程池：
+
+- 1）bossGroup 线程池则只是在 Bind 某个端口后，获得其中一个线程作为 MainReactor，专门处理端口的 Accept 事件，每个端口对应一个 Boss 线程；
+- 2）workerGroup 线程池会被各个 SubReactor 和 Worker 线程充分利用。
+
+Netty 基于 Selector 对象实现 I/O 多路复用，通过 Selector 一个线程可以监听多个连接的 Channel 事件。
+![](https://img2024.cnblogs.com/blog/1694759/202405/1694759-20240513150813521-1610896001.png)
+
+
 
