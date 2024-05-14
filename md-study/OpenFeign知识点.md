@@ -1,8 +1,7 @@
 
+https://blog.csdn.net/it_lihongmin/article/details/109027896?spm=1001.2014.3001.5501
 
-
-# 1.FeignClient注解如何有对应实现类的？ [参考大神博客](https://blog.csdn.net/it_lihongmin/article/details/109027896?spm=1001.2014.3001.5501):https://blog.csdn.net/it_lihongmin/article/details/109027896?spm=1001.2014.3001.5501
-
+# 1.FeignClient注解如何有对应实现类的？
 + 项目启动类或扫描的对应config上有 @EnableFeignClients 代表开启Feign。然后 @FeignClients注解的类才能被扫描注入到Spring容器。
 + @EnableFeignClients 注解上有 **@Import(FeignClientsRegistrar.class)**。将@FeignClients注解的类以FeignClientFactoryBean类型的BeanDifinotion注册到Ioc容器。
 	+ 对@EnableFeignClietns全家配置的解析，适用于所有的@FeignClient
@@ -116,7 +115,7 @@
 # 2.FeignClient方法调用，动态执行的过程
 	当启用  feign.hystrix.enabled =true， 开启了，则使用 HystrixTargeter代理。
 	
-	![](https://img2020.cnblogs.com/blog/1694759/202109/1694759-20210904132646251-1169218744.png)
+![](https://img2020.cnblogs.com/blog/1694759/202109/1694759-20210904132646251-1169218744.png)
 
 - 创建HystrixCommand对象，内置了两个回调函数。Http请求的真正调用HystrixInvocationHandler.this.dispatch.get(method).invoke(args);
 - getFallback方法，预制了我们配置的降级方法或降级方法工厂
@@ -153,7 +152,7 @@
 
 # 4.Feign Hystrix Ribbon 关系
 
-	![](https://img2020.cnblogs.com/blog/1694759/202109/1694759-20210904135305303-2123464886.png)
+![](https://img2020.cnblogs.com/blog/1694759/202109/1694759-20210904135305303-2123464886.png)
 	
 	```
 	feign:
@@ -250,7 +249,7 @@
 # 5.Feign的原理
 + 以JAVA注解的方式定义的远程调用API接口(JDK代理类)，最终转换成HTTP的请求形式，然后将HTTP的请求的响应结果，解码成JAVA Bean，放回给调用者。
 
-	![](https://img2020.cnblogs.com/blog/1694759/202109/1694759-20210906174823643-1905489410.png)
+![](https://img2020.cnblogs.com/blog/1694759/202109/1694759-20210906174823643-1905489410.png)
 
 + @EnableFeignClients 注解上有 **@Import(FeignClientsRegistrar.class)**。将@FeignClients注解的类以FeignClientFactoryBean类型的BeanDifinotion注册到Ioc容器(注入的FeignClientFactoryBean类型)
 + 反射InvocationHandler 核心代理接口, Feign提供一个默认的 **FeignInvocationHandler** 类，该类处于 feign-core 核心jar包中。当起启动Hystrix时，会使用 **HystrixInvocationHandler**。
@@ -260,10 +259,10 @@
 	![](https://img2020.cnblogs.com/blog/1694759/202109/1694759-20210906180338353-605563650.png)
 
 
-	![](https://img2020.cnblogs.com/blog/1694759/202109/1694759-20210906180604651-82914352.png)
+![](https://img2020.cnblogs.com/blog/1694759/202109/1694759-20210906180604651-82914352.png)
 
 
-# 6.如何开启日志争强？
+# 6.如何开启日志增强？
 - Feign的日志争强是对Http请求打印详细信息的,有4个级别：
     - NONE(默认、不打印任何日志)、
     - BASIC(仅记录请求方法、URL、响应状态码及执行时间)
@@ -283,7 +282,7 @@
             cn.myjszl.service: debug
     ```
 # 7.feign接口指定配置
-- 通过 @FeignClient 注解中属性 configuration 配置指定编码 Encoder 与解码 Decoder，作用域仅限当前单例
+- 通过 @FeignClient 注解中属性 configuration 配置指定编码器（Encoder）、解码器（Decoder）、契约(接口方法映射Http路径)（Contract）、请求拦截器（RequestInterceptor）、请求选项（Request.Options）和重试器（Retryer），作用域仅限当前单例
 
 
 

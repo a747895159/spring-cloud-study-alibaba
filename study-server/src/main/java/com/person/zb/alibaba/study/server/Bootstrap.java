@@ -6,6 +6,7 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.boot.autoconfigure.jdbc.DataSourceAutoConfiguration;
 import org.springframework.cloud.client.SpringCloudApplication;
 import org.springframework.cloud.client.discovery.EnableDiscoveryClient;
+import org.springframework.cloud.openfeign.EnableFeignClients;
 import org.springframework.context.ConfigurableApplicationContext;
 import org.springframework.context.annotation.ComponentScan;
 import springfox.documentation.swagger2.annotations.EnableSwagger2WebMvc;
@@ -20,6 +21,7 @@ import springfox.documentation.swagger2.annotations.EnableSwagger2WebMvc;
 @Slf4j
 @EnableDiscoveryClient
 @EnableSwagger2WebMvc
+@EnableFeignClients
 @ComponentScan(value = {"com.person.zb.alibaba.study", "springfox.documentation.schema"})
 public class Bootstrap {
 
