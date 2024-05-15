@@ -34,7 +34,23 @@ https://blog.csdn.net/it_lihongmin/article/details/109027896?spm=1001.2014.3001.
 
 总体而言，基于接口的动态代理更加灵活，并且是Java官方支持的方式；而基于类的动态代理在某些场景下更加方便，尤其是对于没有实现接口的类。
 
-
+# 3.SpringBean 生命周期
+- 1.实例化：Spring IoC容器首先会实例化一个Bean。这通常是通过反射来完成的，Spring会根据配置（如XML或注解）中指定的Bean类型来创建相应的实例。
+- 2.属性注入（依赖注入）：在Bean实例化后，Spring IoC容器会将其依赖项（其他Bean）注入到该Bean中。这可以通过setter方法、构造函数或字段注入来完成。
+- 3.BeanNameAware接口（可选）：如果Bean实现了BeanNameAware接口，Spring IoC容器会调用其setBeanName方法，并传递该Bean在容器中的唯一名称。
+- 4.BeanFactoryAware接口（可选）：如果Bean实现了BeanFactoryAware接口，Spring IoC容器会调用其setBeanFactory方法，并传递当前BeanFactory的实例，允许Bean获取其他Bean的引用。
+- 5.ApplicationContextAware接口（可选，仅适用于ApplicationContext容器）：如果Bean实现了ApplicationContextAware接口，Spring IoC容器（实际上是一个ApplicationContext）会调用其setApplicationContext方法，并传递当前ApplicationContext的实例。
+- 6.**初始化阶段**：
+  - 如果实现BeanPostProcessor接口，先执行postProcessBeforeInitialization。
+  - 如果Bean上有@PostConstruct注解的方法，这个方法会被执行。
+  - 如果Bean实现了InitializingBean接口，调用afterPropertiesSet()方法。
+  - 如果XML存在init-method配置，执行其相关方法。
+  - 如果实现BeanPostProcessor接口，执行BeanPostProcessor的postProcessBeforeInitialization()方法。
+- 7.使用Bean：此时Bean已经准备好并可以被应用程序的其他部分使用。
+- 8.**销毁阶段**：销毁通常发生在ApplicationContext关闭时.
+  - 如果Bean实现了DisposableBean接口，容器关闭时调用destroy()方法。
+  - 如果Bean上有@PreDestroy注解的方法，这些方法会在容器关闭前执行。
+  - 如果XML存在destroy-method配置，执行其相关方法。
 
 
 # 20.SpringBoot：注解@ConditionalOnClass(X.class),X不存在时 会不会报错？
