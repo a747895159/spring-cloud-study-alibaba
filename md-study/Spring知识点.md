@@ -95,13 +95,12 @@ Spring AOP中的动态代理主要JDK动态代理和CGLIB动态代理：
 
 # 7、Spring中的BeanFactory与ApplicationContext的作用和区别？
 
-
-    BeanFactory负责读取bean配置文档，管理bean的加载，实例化，维护bean之间的依赖关系，负责bean的声明周期。采用延迟加载的，只有getBean时才会初始化
+BeanFactory负责读取bean配置文档，管理bean的加载，实例化，维护bean之间的依赖关系，负责bean的声明周期。采用延迟加载的，只有getBean时才会初始化
 ApplicationContext是BeanFactory的派生类，容器启动时全部初始化，除了提供上述BeanFactory所能提供的功能之外，还提供了更完整的框架功能：
 　　 　
-     1．提供文本信息解析，支持I18N；
-2. 提供载入文件资源资源访问，比如URL和文件；
-3. 实现事件发布ApplicationEventPublisher，将事件传递给实现了ApplicationListener接口的bean；
+- 提供文本信息解析，支持I18N；
+- 提供载入文件资源资源访问，比如URL和文件；
+- 实现事件发布ApplicationEventPublisher，将事件传递给实现了ApplicationListener接口的bean；
 
 
 
