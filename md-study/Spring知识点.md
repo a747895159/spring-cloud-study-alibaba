@@ -8,6 +8,7 @@ https://blog.csdn.net/it_lihongmin/article/details/109027896?spm=1001.2014.3001.
 
 ![](https://img2020.cnblogs.com/blog/1694759/202108/1694759-20210821142210057-1202748366.png)
 
+![](https://img2024.cnblogs.com/blog/1694759/202405/1694759-20240516175803023-702072708.png)
 
 
 # 2.说说动态代理的实现方式和区别
@@ -591,8 +592,28 @@ wms-ibd-center:
 # 46.feign接口指定配置
 - 通过 @FeignClient 注解中属性 configuration 配置指定编码器（Encoder）、解码器（Decoder）、契约(接口方法映射Http路径)（Contract）、请求拦截器（RequestInterceptor）、请求选项（Request.Options）和重试器（Retryer），作用域仅限当前单例
 
+# 47、Spring Cloud 各模块简介？
+- 1.Spring Cloud Config
+  - 集中配置管理工具，分布式系统中统一的外部配置管理，默认使用Git来存储配置，可以支持客户端配置的刷新及加密、解密操作。 类似功能有 携程的 apollo，阿里的 nacos。
+- 2.Spring Cloud Netflix
+  - Netflix OSS 开源组件集成，包括Eureka、Hystrix、Ribbon、Feign、Zuul等核心组件。
+  - Eureka：服务治理组件，包括服务端的注册中心和客户端的服务发现机制；
+  - Ribbon：负载均衡的服务调用组件，具有多种负载均衡调用策略；
+  - Hystrix：服务容错组件，实现了断路器模式，为依赖服务的出错和延迟提供了容错能力；
+  - Feign：基于Ribbon和Hystrix的声明式服务调用组件；
+  - Zuul：API网关组件，对请求提供路由及过滤功能。
+- 3.Spring Cloud Bus
+  - 用于传播集群状态变化的消息总线，使用轻量级消息代理链接分布式系统中的节点，可以用来动态刷新集群中的服务配置。可以通过 http://localhost:8081/actuator/bus-refresh(2.1.6版本) 手动方式刷新环境配置。
+- 4.Spring Cloud Consul
+  - 基于Hashicorp Consul的实现分布式系统的服务发现与配置，Consul基于go语言开发独立应用。 类似有 eureka、zookeeper。
+- 5.Spring Cloud Sleuth
+  - Spring Cloud应用程序的分布式请求链路跟踪，支持使用Zipkin、HTrace和基于日志（例如ELK）的跟踪。
+- 6.Spring Cloud Gateway
+  - API网关组件，对请求提供路由及过滤功能。第二代网关框架，取代Zuul网关。网关作为流量的，在微服务系统中有着非常作用，网关常见的功能有路由转发、权限校验、限流控制等作用。
+- 7.Spring Cloud OpenFeign
+  - 基于Ribbon和Hystrix的声明式服务调用组件，可以动态创建基于Spring MVC注解的接口实现用于服务调用。
 
-
+ 
 
 
 
