@@ -128,11 +128,11 @@ Spring事务的本质其实就是数据库对事务的支持，没有数据库�
 
 ④ PROPAGATION_REQUIRES_NEW：创建新事务，无论当前存不存在事务，都创建新事务。
 
-⑤ PROPAGATION_NOT_SUPPORTED：以非事务方式执行操作，如果当前存在事务，就把当前事务挂起。
+⑤ PROPAGATION_NOT_SUPPORTED：以非事务方式执行操作，如果当前存在事务，就把当前事务挂起。无论当前操作是否操作异常都不会影响外部事物。
 
 ⑥ PROPAGATION_NEVER：以非事务方式执行，如果当前存在事务，则抛出异常。
 
-⑦ PROPAGATION_NESTED：如果当前存在事务，则在嵌套事务内执行。如果当前没有事务，则按REQUIRED属性执行。
+⑦ PROPAGATION_NESTED：如果当前存在事务，则在嵌套事务内执行(如果嵌套的事务异常，不会影响外部事物回滚)。如果当前没有事务，则按REQUIRED属性执行。
 
 
 
