@@ -48,7 +48,7 @@
 
 # 4.ES 使用存在的坑点
 
-- ES 的每个分片（shard）都是lucene的一个index，而lucene的一个index只能存储20亿个文档，单个分片的大小在10G-50G之间。
+- ES 的每个分片（shard）都是lucene的一个index，而lucene的一个index只能存储21亿个文档(即 Integer.MAX_VALUE - 12)，单个分片的大小在10G-50G之间。
 - Text类型在存入 Elasticsearch 的时候，会先分词，然后根据分词后的内容建立倒排索引。部分场景根据keywork查询即可，去掉text字段，节约空间。
 - 增加**routing key**,可以将请求分发到具体的shard，减少大量不必要的请求。
 - 过多依赖ES聚合结果，ES聚合结果不是很精确的。
