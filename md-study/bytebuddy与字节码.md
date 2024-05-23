@@ -1,7 +1,69 @@
+
 [TOC]
 
 
-# 1. Java Agent介绍
+
+skywalking大神分析： https://blog.csdn.net/qq_40378034/article/details/121882943
+
+
+
+# 1.bytebuddy 字节码增强原理,  skywalking 底层使用的
+https://blog.csdn.net/wanxiaoderen/article/details/107079741?spm=1001.2014.3001.5501
+
+本身就是 java 命令的一个参数（即 -javaagent）。-javaagent 参数之后需要指定一个 jar 包，这个 jar 包需要同时满足下面两个条件：
+在 META-INF 目录下的 MANIFEST.MF 文件中必须指定 premain-class 配置项。
+premain-class 配置项指定的类必须提供了 premain() 方法。
+Premain-class: main方法执行前执行的agent类.Agent-class: 程序启动后执行的agent类.Can-Redefine-Classes: agent是否具有redifine类能力的开关，true表示可以，false表示不可以.
+Can-Retransform-Classes: agent是否具有retransform类能力的开关，true表示可以，false表示不可以.Can-Set-Native-Method-Prefix: agent是否具有生成本地方法前缀能力的开关，trie表示可以，false表示不可以.
+Boot-Class-Path: 此路径会被加入到BootstrapClassLoader的搜索路径.
+
+    <plugin>
+            <groupId>org.apache.maven.plugins</groupId>
+            <artifactId>maven-shade-plugin</artifactId>
+            <version>2.4.3</version>
+            <configuration>             <!-- 自动将所有不使用的类排除-->
+                <minimizeJar>true</minimizeJar>
+            </configuration>
+            <executions>
+                <execution>
+                    <phase>package</phase>
+                    <goals>
+                        <goal>shade</goal>
+                    </goals>
+                    <configuration>
+                        <shadedArtifactAttached>true</shadedArtifactAttached>
+                        <shadedClassifierName>biz</shadedClassifierName>
+                    </configuration>
+                </execution>
+            </executions>
+        </plugin>
+
+
+在 Java 虚拟机启动时，执行 main() 函数之前，虚拟机会先找到 -javaagent 命令指定 jar 包，然后执行 premain-class 中的 premain() 方法。用一句概括其功能的话就是：main() 函数之前的一个拦截器。
+
+
+
+rebasing：对应 ByteBuddy.rebasing() 方法。当使用 rebasing 方式增强一个类时，Byte Buddy 保存目标类中所有方法的实现，也就是说，当 Byte Buddy 遇到冲突的字段或方法时，会将原来的字段或方法实现复制到具有兼容签名的重新命名的私有方法中，而不会抛弃这些字段和方法实现。从而达到不丢失实现的目的。
+redefinition：对应 ByteBuddy.redefine() 方法。当重定义一个类时，Byte Buddy 可以对一个已有的类添加属性和方法，或者删除已经存在的方法实现。如果使用其他的方法实现替换已经存在的方法实现，则原来存在的方法实现就会消失。
+
+
+
+# 2.Java代码生成库
+- Java Proxy: JDK自带的一个代理工具，它允许为实现一系列接口的类代理类。要求目标类必须实现一个接口。
+- CGLIB: 早起Java类库，也是强大的库,很复杂，后续维护类度差。基于ASM的字节码二次封装类库。
+- Javassist :使用对开发者来说非常友好的,它使用Java源代码字符串和Javassist提供的简单API，共同拼凑出用户的Java类。Javassist自带编译器,性能上比不上Javac。在动态组合字符串以实现比较复杂的逻辑容器出错。
+  是一个底层字节码的修改工具,性能上比不上AMS,比ASM易于上手。
+- Byte Buddy : 提供一种非常灵活且强大的领域特定语言,通过编写简单的Java代码即可创建自定义的运行时类。是一种基于切面方式实现类的行为增强,基于ASM的字节码二次封装类库。
+    - subclass：对应 ByteBuddy.subclass() 方法, 生成目标类的子类。在子类方法中插入动态代码。
+    - rebasing：对应 ByteBuddy.rebase() 方法。当使用 rebasing 方式增强一个类时，Byte Buddy 保存目标类中所有方法的实现，也就是说，当 Byte Buddy 遇到冲突的字段或方法时，会将原来的字段或方法实现复制到具有兼容签名的重新命名的私有方法中，而不会抛弃这些字段和方法实现。从而达到不丢失实现的目的。
+    - redefinition：对应 ByteBuddy.redefine() 方法。当重定义一个类时，Byte Buddy 可以对一个已有的类添加属性和方法，或者删除已经存在的方法实现。如果使用其他的方法实现替换已经存在的方法实现，则原来存在的方法实现就会消失。
+    - 应用场景：AOP切面、类代理、监控(SkyWalking)
+
+- ASM : 基于字节码编程的方式处理，每一步代码操作都是操作字节码指令，上手难度大，实现方式复杂，需要了解JVM虚拟机相关规范知识。
+    - 性能指数最高,应用于 全链路监控、破解工具包、Spring获取类原数据、CGLIB底层.
+
+
+# 3. Java Agent介绍
 
 java agent是基于JVMTI机制实现JVM启动时与运行时加载代理。从Jdk5开始引入的
 
@@ -35,14 +97,14 @@ JPLISAgent：全称为Java programming Language Instrumatation Service Agent。
 
 ![](https://img2022.cnblogs.com/blog/1694759/202206/1694759-20220609113853092-780241676.png)
 
+![](https://img2022.cnblogs.com/blog/1694759/202206/1694759-20220616123708521-892655234.png)
 
 
-# bytebuddy介绍
+
+# 4.bytebuddy介绍
 
 ![](https://img2022.cnblogs.com/blog/1694759/202205/1694759-20220511175517832-800511668.png)
 
-
-### ByteBuddy
 
 所有的操作依赖DynamicType.Builder进行,创建不可变的对象
 
@@ -53,13 +115,13 @@ JPLISAgent：全称为Java programming Language Instrumatation Service Agent。
   类似于redefine，但是原有的方法不会消失，而是被重命名，添加后缀 $original，这样，就没有实现会被丢失。重定义的方法可以继续通过它们重命名过的名称调用原来的方法
 
 
-### ElementMatchers(ElementMatcher)
+## ElementMatchers(ElementMatcher)
 
 * 提供一系列的元素匹配的工具类(named/any/nameEndsWith等等)
 * ElementMatcher(提供对类型、方法、字段、注解进行matches的方式,类似于Predicate)
 * Junction对多个ElementMatcher进行了and/or操作
 
-### DynamicType(动态类型,所有字节码操作的开始,非常值得关注)
+## DynamicType(动态类型,所有字节码操作的开始,非常值得关注)
 
 * Unloaded(动态创建的字节码还未加载进入到虚拟机,需要类加载器进行加载)
 
@@ -97,7 +159,7 @@ AccessingField 就是属性的的set和get方法，为类构造这两个方法
 
 
 
-### Builder(用于创建DynamicType,相关接口以及实现后续待详解)
+## Builder(用于创建DynamicType,相关接口以及实现后续待详解)
 
 * MethodDefinition
 * FieldDefinition
@@ -122,7 +184,7 @@ AccessingField 就是属性的的set和get方法，为类构造这两个方法
 | @Morph        | 类似于@SuperCall，但是允许指定调用参数                       |
 
 
-### ClassLoadingStrategy(类加载器策略)
+## ClassLoadingStrategy(类加载器策略)
 
 如果不指定ClassLoadingStrategy，Byte Buffer根据你提供的ClassLoader来推导出一个策略，内置的策略定义在枚举ClassLoadingStrategy.Default中
 
@@ -188,11 +250,11 @@ byebyte 可以实现aop的功能。在前面的讲解中，没有提到过ASM，
 
 
 
-## 注解列表
+# 5.bytebuddy注解列表
 
 
 
-# 一、 注解列表
+## 一、 注解列表
 
 | 注解             |                                                              | 值                               |                                                              |
 | :--------------- | :----------------------------------------------------------- | :------------------------------- | :----------------------------------------------------------- |
