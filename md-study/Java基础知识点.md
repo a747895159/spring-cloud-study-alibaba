@@ -131,6 +131,45 @@ ThreadLocal不支持子线程继承，可以使用JDK中的InheritableThreadLoca
 
 
 
+# 20. JavaAgent实现原理
+
+java agent是基于**JVMTI (JVM Tool Interface)**机制实现的，其通过监听事件的方式获取Java应用运行状态，调用JVM TI提供的接口对应用进行控制。
+
+- 1.**启动时加载方式`premain`**，-javaagent 参数之后需要指定一个 jar 包，在 META-INF 目录下的 MANIFEST.MF 文件中必须指定 `Premain-Class`配置项,启动时虚拟机先执行`premain()`方法
+	- 使用场景：Skywalking、自定义业务增强Captain插件
+
+- 2.**运行时加载Attach机制`agentmain`**，JVM不停机支持进程间pid通信，将agent对应的jar传给目标JVM。通过Attach Listener线程来进行加载。在 META-INF 目录下的 MANIFEST.MF 文件中必须指定 `Agent-Class`配置项
+	- 使用场景：应用CPU、线程、GC信息诊断工具，如：阿里Arthas、VisualVM、JProfile
+
+
+![](https://img2022.cnblogs.com/blog/1694759/202206/1694759-20220616123708521-892655234.png)
+
+# 21. JavaAgent相关开发库
+
+- 1.**Javassist **:使用简洁，比较老的类库，在动态组合字符串以实现比较复杂的逻辑容器出错。
+- 2.**ASM库** :操作字节码指令，上手难度大，性能高，用于各工具底层实现（ByteBuddy、CGLIB）
+- 3.**ByteBuddy** :强大灵活的开发库，基于切面方式实现类的增强，基于ASM二次封装。
+
+
+
+| 字节码工具   | java-proxy                 | asm                          | Javassist                               | cglib                                  | bytebuddy                                                    |
+| ------------ | -------------------------- | ---------------------------- | --------------------------------------- | -------------------------------------- | ------------------------------------------------------------ |
+| 类创建       | 支持                       | 支持                         | 支持                                    | 支持                                   | 支持                                                         |
+| 实现接口     | 支持                       | 支持                         | 支持                                    | 支持                                   | 支持                                                         |
+| 方法调用     | 支持                       | 支持                         | 支持                                    | 支持                                   | 支持                                                         |
+| 类扩展       | 不支持                     | 支持                         | 支持                                    | 支持                                   | 支持                                                         |
+| 父类方法调用 | 不支持                     | 支持                         | 支持                                    | 支持                                   | 支持                                                         |
+| 优点         | 容易上手，简单动态代理首选 | 任意字节码插入，几乎不受限制 | java原始语法，字符串形式插入，写入直观  | bytebuddy看起来差不多                  | 支持任意维度的拦截，可以获取原始类、方法，以及代理类和全部参数 |
+| 缺点         | 功能有限，不支持扩展       | **学习难度大，编写代码量大** | 不支持jdk1.5以上的语法，如泛型，增强for | 正在被bytebuddy淘汰                    | 不太直观，学习理解有些成本，API非常多                        |
+| 常见应用     | spring-aop，MyBatis        | cglib，bytebuddy             | Fastjson，MyBatis                       | spring-aop，EasyMock，jackson-databind | SkyWalking                                                   |
+
+
+
+# 22.Captain 插件基于ByteBuddy实现了哪些功能，如何实现的？
+
+
+
+
 
 
 
