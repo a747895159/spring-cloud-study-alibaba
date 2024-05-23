@@ -28,7 +28,7 @@
   - 1.使用keyword代替 int/long/numeric(对于keyword类型的term query，ES使用的是倒排索引。但是numeric类型为了能有效的支持范围查询，它的存储结构并不是倒排索引); 
   - 2.预先建立 mapping，而不是让 ES 自动生成数据类型，加速检索.
 - 查询优化：
-  - 1.分页查询性能优化,尽量不要深度分页。
+  - 1.分页查询性能优化,尽量不要深度分页。采用score-api或者search-after方式。
   - 2.能用term就不用match_phrase
   - 3.使用过滤器优化查询。ES有一个特殊的缓存过滤器缓存（filter cache）,只储存了哪些文档能与过滤器相匹配的相关信息，而且可供后续所有与之相关的查询重复使用。
     - query：查询操作不仅仅会进行查询，还会计算分值，用于确定相关度；
@@ -48,7 +48,7 @@
 
 # 4.ES 使用存在的坑点
 
-- ES 的每个分片（shard）都是lucene的一个index，而lucene的一个index只能存储21亿个文档(即 Integer.MAX_VALUE - 12)，单个分片的大小在10G-50G之间。
+- ES 的每个分片（shard）都是lucene的一个index，而lucene的一个index只能存储21亿左右文档(即 Integer.MAX_VALUE - 12)，单个分片的大小在10G-50G之间。
 - Text类型在存入 Elasticsearch 的时候，会先分词，然后根据分词后的内容建立倒排索引。部分场景根据keywork查询即可，去掉text字段，节约空间。
 - 增加**routing key**,可以将请求分发到具体的shard，减少大量不必要的请求。
 - 过多依赖ES聚合结果，ES聚合结果不是很精确的。
