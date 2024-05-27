@@ -234,6 +234,8 @@ consumer.shutdown();
 
 ```
 
+![](https://img2024.cnblogs.com/blog/1694759/202404/1694759-20240429101912780-356187072.png)
+
 # 5.Rocketmq怎么保证队列完全顺序消费？
 
 
