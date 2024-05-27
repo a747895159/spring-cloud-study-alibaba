@@ -40,7 +40,7 @@
 
 # 4.Dubbo的SPI扩展
 
-+ SPI(Service Provider Interface)服务提供商接口，**是一种动态替换发现服务实现者的机制**。 JDK 为SPI提供了工具类 java.util.ServiceLoader，指定加载**resource目录`META-INF/services`下，文件名就是服务接口的全限定名**。
++ SPI(Service Provider Interface)服务提供商接口，SPI 的本质是将接口实现类的全限定名配置在文件中，并由服务加载器读取配置文件，加载实现类，**是一种动态替换发现服务实现者的机制**。 JDK 为SPI提供了工具类 java.util.ServiceLoader，指定加载**resource目录`META-INF/services`下，文件名就是服务接口的全限定名**。
   + 缺点：ServiceLoader也算是使用的延迟加载。但是通过遍历获取，接口的实现类全部实例化一遍，不灵活浪费。
   + 优点：不需要改动源代码可以实现扩展，解耦，对源代码无侵入。只要添加配置即可实现，符合开闭原则。
   + 举例：jdbc的 Driver 驱动、Slf4j日志框架、Dubbo框架、Spring框架
