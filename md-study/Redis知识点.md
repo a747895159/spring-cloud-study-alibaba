@@ -212,7 +212,9 @@ LRU算法实现：
 # 18.redis做异步队列的实现
 
 - 异步队列：使用list结构作为队列，rpush生产消息，lpop消费消息。
-- 延迟队列：使用sortedset，使用时间戳做score, 消息内容作为key,调用zadd来生产消息，消费者使用zrangbyscore获取n秒之前的数据做轮询处理。
+- 延迟队列：
+  - 基于过期事件监听(不靠谱、key删除时才会有通知，会延迟的)
+  - 使用sortedset，使用时间戳做score, 消息内容作为key,调用zadd来生产消息，消费者使用zrangbyscore获取n秒之前的数据做轮询处理。
 
 有以下问题：
 
