@@ -25,6 +25,10 @@ sun.misc.Unsafe.copyMemory() 的调用，背后的实现原理与 memcpy() 类�
     - 2、重建Selector，判断是否是其他线程发起的重建请求，若不是则将原SocketChannel从旧的Selector上去除注册，重新注册到新的Selector上，并将原来的Selector关闭。
 
 # 3.Netty的主从多线程模型
+
+多路复用IO模型：有一个线程不断去轮询多个 socket 的状态，只有当 socket 真正有读写事件时，才真正调用实际的 IO 读写操作。
+  - 节省资源：由于多个IO操作共享同一个进程或线程，因此可以有效地利用系统资源，减少不必要的进程或线程创建和销毁开销。减少用户态线程与内核态线程的切换。
+
 Netty 的线程模型基于主从 Reactor 多线程，借用了 MainReactor 和 SubReactor 的结构。但是实际实现上 SubReactor 和 Worker 线程在同一个线程池中：
 ```
     // 创建工作线程组,每次创建NioEventLoopGroup时 默认启动了电脑可用线程数的两倍, 可以指定线程数
