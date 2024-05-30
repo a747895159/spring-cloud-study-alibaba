@@ -45,7 +45,8 @@ G1 设计的目标：它并非纯粹地追求低延迟，官方给它设定的�
 - **记忆集（Remenbered Set,简称RSet）和卡表（Card Table）** ：
   RSet全称是Remember Set，每个Region中都有一个RSet，记录的是其他Region中的对象引用本Region对象的关系(谁引用了我的对象)。
   G1里面还有另外一种数据结构就Collection Set(CSet)，CSet记录的是GC要收集的Region的集合，CSet里的Region可以是任意代的。在GC的时候，对于old->young和old->old的跨代对象引用，只要扫描对应的CSet中的RSet即可。
-  RSet存在的意义就是避免对象跨代引用时对整个堆内存对象的扫描，起到一种类似索引（更像空间索引）的作用
+  RSet存在的意义就是避免对象跨代引用时对整个堆内存对象的扫描，起到一种类似索引（更像空间索引）的作用。
+- 卡表主要记录了老年代对新生代的引用关系，在MinorGC时减少扫描范围。卡表是记忆集的一种实现。
 
 - 原始快照（Snapshot At The Beginning，SATB）
   简洁地来说，SATB是维持并发GC的一种手段，因为像CMS、G1等收集器，首先经过初始标记，然后进行并发标记，并发标记过程中，可能对初始标记的结果产生了改动，需要进行修正，分别有增量更新和原始快照两种解决方法。CMS收集器使用增量更新来纠正对象引用关系，而G1收集器使用原始快照的策略。原始快照方式速度高于增量更新方式。
@@ -76,7 +77,8 @@ OpenJDK 使用了 **JIT(Just-in-time) 即时编译技术**，可以动态的把 
 - 线程逃逸：这个对象甚至可能被其它线程访问到，例如赋值给类变量或可以在其它线程中访问的实例变量。
 
 从不逃逸、方法逃逸到线程逃逸，称为对象由低到高的不同逃逸程度。通过逃逸分析，编译器会对代码进行优化。
-- **同步锁消除**: 通过逃逸分析，发现一个对象只能从一个线程被访问到，则访问这个对象时，可以不加同步锁。针对的是synchronized锁，而对于非内置锁，比如 Lock 显示锁、CAS乐观锁等等，则JVM并不能消除。
+
+- **同步锁消除(锁粗化)**: 通过逃逸分析，发现一个对象只能从一个线程被访问到，则访问这个对象时，可以不加同步锁。针对的是synchronized锁，而对于非内置锁，比如 Lock 显示锁、CAS乐观锁等等，则JVM并不能消除。
 - **栈上分配**: 从不逃逸时。对象不分配在堆上，而是分配在栈内存上。栈上分配可以快速地在栈帧上创建和销毁对象，不用再将对象分配到堆空间，可以有效地减少 JVM 垃圾回收的压力。
 - **标量替换**: 一个对象可能不需要作为一个连续的存储空间，当一个对象没有逃逸时，会将当前对象打散成若干局部变量，并分配在虚拟机栈的局部变量表中，更好的利用栈内存和寄存器.
      ```
@@ -162,11 +164,44 @@ OpenJDK 使用了 **JIT(Just-in-time) 即时编译技术**，可以动态的把 
 
 **四、灵活性**
 
-`lock`锁比`sychronized`的灵活性更高。
+- `lock`锁比`sychronized`的灵活性更高。`lock`可以自主的去决定什么时候加锁与释放锁。只需要调用`lock` 的`lock()`和`unlock()`这两个方法就可以。
+- `ReentrantLock`支持Condition接口提供了比 synchronized 关键字更细粒度的控制，允许在多线程环境下实现更复杂的同步逻辑调用await()等待、signal()、 condition.signalAll() 来唤醒等待的线程。
 
-`lock`可以自主的去决定什么时候加锁与释放锁。只需要调用`lock` 的`lock()`和`unlock()`这两个方法就可以。
+```
+Condition condition = lock.newCondition();
+new Thread(() -> {
+    lock.lock();
+    try {
+        System.out.println("线程一加锁成功");
+        System.out.println("线程一执行await被挂起");
+        condition.await();
+        System.out.println("线程一被唤醒成功");
+    } catch (Exception e) {
+        e.printStackTrace();
+    } finally {
+        lock.unlock();
+        System.out.println("线程一释放锁成功");
+    }
+}).start();
 
-`sychronized` 由于是一个关键字，所以他无法实现非阻塞竞争锁的方法，一个线程获取锁之后，其他锁只能等待那个线程释放之后才能有获取锁的机会。
+new Thread(() -> {
+    lock.lock();
+    try {
+        System.out.println("线程二加锁成功");
+        condition.signal();
+        System.out.println("线程二唤醒线程一");
+    } finally {
+        lock.unlock();
+        System.out.println("线程二释放锁成功");
+    }
+}).start();
+
+```
+
+![](https://img2024.cnblogs.com/blog/1694759/202405/1694759-20240530135324721-962224465.png)
+
+
+- `sychronized` 由于是一个关键字，所以他无法实现非阻塞竞争锁的方法，一个线程获取锁之后，其他锁只能等待那个线程释放之后才能有获取锁的机会。
 
 **五、公平锁与非公平锁**
 
@@ -215,8 +250,13 @@ OpenJDK 使用了 **JIT(Just-in-time) 即时编译技术**，可以动态的把 
 `lock`锁还能使用`readwritelock`实现读写分离，提高多线程的读操作效率。
 
 **十一、sychronized锁升级**
-
+JDK5之后增加了自适应的CAS自旋、锁消除(JIT逃逸分析)、锁粗化(JIT逃逸分析)、偏向锁、轻量级锁等优化策略
 `synchronized` 代码块是由一对 `monitorenter/monitorexit` 指令实现的。`Monitor`的实现完全是依靠操作系统内部的互斥锁，因为需要进行用户态到内核态的切换，所以同步操作是一个无差别的重量级操作。
+
+每个Java对象都有一个对象头**Mark Word（标记字段）**，里面包含了对象的类型、锁状态、hashcode、线程ID等信息。
+
+![](https://img2024.cnblogs.com/blog/1694759/202405/1694759-20240530140412709-418436488.png)
+
 
 所以现在JVM提供了三种不同的锁：**偏向锁** 、**轻量级锁** 、**重量级锁** 。
 
