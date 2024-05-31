@@ -69,12 +69,9 @@ https://learning.snssdk.com/feoffline/toutiao_wallet_bundles/toutiao_learning_wa
 
 * **ArrayBlockingQueue** ：使用数组实现的有界阻塞队列，特性先进先出
 * **LinkedBlockingQueue** ：使用链表实现的阻塞队列，特性先进先出，可以设置其容量，默认为Interger.MAX_VALUE，特性先进先出
-* **PriorityBlockingQueue** ：使用平衡二叉树堆，实现的具有优先级的无界阻塞队列
+* **PriorityBlockingQueue** ：二叉树最小堆的实现，实现的具有优先级的无界阻塞队列。提交的任务需具备排序能力。
 * **DelayQueue** ：无界阻塞延迟队列，队列中每个元素均有过期时间，当从队列获取元素时，只有过期元素才会出队列。队列头元素是最块要过期的元素。
 * **SynchronousQueue** ：一个不存储元素的阻塞队列，每个插入操作，必须等到另一个线程调用移除操作，否则插入操作一直处于阻塞状态
-
-- 使用PriorityBlockingQueue 作为 线程池的任务队列。
-- 提交的任务 具备 排序能力。
 
 # 5.1 PriorityBlockingQueue 队列是无界的，怎么实现数量限制？
 - PriorityBlockingQueue是无界的，它的offer方法永远返回true。会带来OOM风险、最大线程数失效、拒绝策略失效。
@@ -102,33 +99,64 @@ https://learning.snssdk.com/feoffline/toutiao_wallet_bundles/toutiao_learning_wa
 ![参考网址](https://www.cnblogs.com/a747895159/articles/18030189)
 
 
-# 7.ThreadLocal内存泄露的原因？要如何避免？
+# 7.ThreadLocalMap内存泄露的原因？要如何避免？
 
-`弱引用解决的是ThreadLocal对象的内存泄露问题，但value还存在内存泄露的风险。`
-- 内存泄露的原因：
+- 每个Thread拥有一个ThreadLocalMap，每个ThreadLocalMap中以ThreadLocal为key，值为value。每个ThreadLocalMap存储的“Key-Value对”数量比较少。
+- ThreadLocalMap底层使用开放地址法(线性探针)。当Thread实例销毁后，ThreadLocalMap也会随之销毁。
 
-> 由于ThreadLocalMap和线程的生命周期是一致的，当线程资源长期不释放，`即使ThreadLocal本身由于弱引用机制已经被回收掉了，但value还是驻留在线程的ThreadLocalMap的Entry中`。即存在key为null，但value却有值的无效Entry，导致内存泄漏。
-
-- ThreadLocal自身采取的措施：
-
-> 但实际上，ThreadLocal内部已经为我们做了一定的防止内存泄漏的工作。ThreadLocalMap提供了一个expungeStaleEntry方法，该方法在`每次调用ThreadLocal的get、set、remove方法时都会执行清理工作`，即ThreadLocal内部已经帮我们做了对key为null的Entry的清理工作：擦除Entry(置为null)，同时检测整个Entry数组将key为null的Entry一并擦除，然后重新调整索引。
->
-> 但是必须需要调用这三个方法才会触发清理，很可能我们使用完之后就不再做任何操作了(set/get/remove)，这样就不会触发内部的清理工作。
-
-`开发人员需要注意： 所以，通常建议每次使用完ThreadLocal后，立即调用remove方法`。
-
-
-# 7.1为什么ThreadLocalMap中key被设计成弱引用类型？
+###  ThreadLocalMap中Entry的 Key被设计成弱引用类型
 
 > key`设计为弱引用`是为了尽最大努力避免内存泄漏，`解决的是ThreadLocal对象的内存泄露问题`。
 > ThreadLocal的设计者考虑到了某些线程的生命周期较长，比如线程池中的线程。由于存在Thread -> ThreadLocalMap -> Entry这样一条强引用链，如果key不设计成弱引用类型，是强引用的话，key就一直不会被GC回收，一直不会是null，Entry就不会被清理。
 > (ThreadLocalMap根据key是否为null来判断是否清理Entry。因为key为null时，引用的ThreadLocal实例不可达会被回收。value又只能通过ThreadLocal的方法来访问，此时相当于value也没用处了。所以，可以根据key是否为null来判断是否清理Entry。)
 
-# 7.2 ThreadLocal继承性问题？如何解决?
+**弱引用解决的是ThreadLocal对象的内存泄露问题，但value还存在内存泄露的风险。**
 
-ThreadLocal不支持子线程继承，可以使用JDK中的InheritableThreadLocal来解决继承性问题。
-对于线程池等场景，可以使用淘宝技术部哲良实现的TransmittableThreadLocal.
+### 内存泄露的原因：
 
+> 由于ThreadLocalMap和线程的生命周期是一致的，当线程资源长期不释放，`即使ThreadLocal本身由于弱引用机制已经被回收掉了，但value还是驻留在线程的ThreadLocalMap的Entry中`。即存在key为null，但value却有值的无效Entry，导致内存泄漏。
+
+- ThreadLocal自身采取的措施,`开发人员需要注意： 所以，通常建议每次使用完ThreadLocal后，立即调用remove方法`。：
+
+> 1.由于ThreadLocalMap中Entry的 Key 使用了弱引用，在下次GC发生时，就可以使那些没有被其他强引用指向、仅被Entry的Key 所指向的ThreadLocal实例能被顺利回收。并且，在Entry的Key引用被回收之后，其Entry的Key值变为null。
+> 2.但实际上，ThreadLocal内部已经为我们做了一定的防止内存泄漏的工作。ThreadLocalMap提供了一个expungeStaleEntry方法，该方法在`每次调用ThreadLocal的get、set、remove方法时都会执行清理工作`，即ThreadLocal内部已经帮我们做了对key为null的Entry的清理工作：擦除Entry(置为null)，同时检测整个Entry数组将key为null的Entry一并擦除，然后重新调整索引。
+> 3.但是必须需要调用这三个方法才会触发清理，很可能我们使用完之后就不再做任何操作了(set/get/remove)，这样就不会触发内部的清理工作。
+
+
+### 示例：
+
+```
+public void funcA() {
+    //创建一个线程本地变量
+    ThreadLocal<Integer> local = new ThreadLocal<>();
+    //设置值
+    local.set(100);
+    //获取值
+    local.get();
+    //函数末尾
+    }
+```
+
+![](https://img2024.cnblogs.com/blog/1694759/202405/1694759-20240531134234369-1551470544.png)
+
+# 7.1 ThreadLocal的性能问题，及内存泄露要如何避免？
+
+- 在高并发的环境下，要尽量复用、重用ThreadLocal变量，避免在高频率的操作中频繁地创建和销毁它们。编程规范：推荐使用 `static final` 修饰ThreadLocal对象。
+
+```
+// privite 缩小使用的范围，尽可能不让他人引用
+private static final ThreadLocal<Foo> LOCAL_FOO = new ThreadLocal<Foo>();
+```
+
+![](https://img2024.cnblogs.com/blog/1694759/202405/1694759-20240531145056592-29295737.png)
+
+
+-  **由于static final 修饰TheadLocal对象实例，属于常量，不会被回收。导致ThreadLocalMap中Entry的Key所引用的ThreadLocal对象实例，一直存在强引用。**  导致上述JDK解决key内存泄露问题都是失效的。**使用完后必须使用remove()进行手动释放。**
+
+### ThreadLocal继承性相关其他类
+
+- InheritableThreadLocal : 是JDK提供的ThreadLocal的子类。允许父线程中的InheritableThreadLocal变量的值被子线程继承。
+- TransmittableThreadLocal ：是阿里巴巴开源的一个框架，跨线程传递：能够在多线程传递中保持变量的传递性，确保在父线程和子线程之间正确传递ThreadLocal变量。
 
 
 # 20. JavaAgent实现原理

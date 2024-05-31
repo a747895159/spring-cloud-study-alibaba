@@ -598,7 +598,7 @@ wms-ibd-center:
 - 2.Spring Cloud Netflix
   - Netflix OSS 开源组件集成，包括Eureka、Hystrix、Ribbon、Feign、Zuul等核心组件。
   - Eureka：服务治理组件，包括服务端的注册中心和客户端的服务发现机制；
-  - Ribbon：负载均衡的服务调用组件，具有多种负载均衡调用策略；
+  - Ribbon：负载均衡的服务调用组件，具有多种负载均衡调用策略、容错机制；
   - Hystrix：服务容错组件，实现了断路器模式，为依赖服务的出错和延迟提供了容错能力；
   - Feign：基于Ribbon和Hystrix的声明式服务调用组件；
   - Zuul：API网关组件，对请求提供路由及过滤功能。
