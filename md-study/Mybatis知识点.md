@@ -25,3 +25,24 @@ Mybatis在处理${}时，就是把${}替换成变量的值。用于传入数据�
 # 5.resultType 与 resultMap 的区别？
 1）类的名字和数据库相同时，可以直接设置 resultType 参数为 Pojo 类
 2）若不同，需要设置 resultMap 将结果名字和 Pojo 名字进行转换
+
+# 6.Mybatis一级缓存与二级缓存介绍
+
+
+### 6.2 Mybatis缓存存在的问题：
+
+
+spring结合mybatis后，一级缓存作用：
+- 在未开启事物的情况之下，每次查询，spring都会关闭旧的sqlSession而创建新的sqlSession,因此此时的一级缓存是没有启作用的
+- 在开启事物的情况之下，spring使用threadLocal获取当前资源绑定同一个sqlSession，因此此时一级缓存是有效的
+
+
+### 6.3如何关闭一级缓存：
+
+```
+<configuration>
+    <settings>
+        <setting name="localCacheScope" value="STATEMENT"/>
+    </settings>
+</configuration>
+```
