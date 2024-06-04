@@ -136,13 +136,28 @@ Spring事务的本质其实就是数据库对事务的支持，没有数据库�
 ⑦ PROPAGATION_NESTED：如果当前存在事务，则在嵌套事务内执行(如果嵌套的事务异常，不会影响外部事物回滚)。如果当前没有事务，则按REQUIRED属性执行。
 
 
-# 11、SpringBoot特点
+# 11、Bean依赖注入那些写法
+
+### 注入方式：
+  - 字段注入：   单一职责，无法注入final字段，可以解决循环。
+  - 构造器注入:  强依赖,有循环依赖问题,建议采用setter方式注入。
+  - setter方法注入: 可以赋空值。。
+
+### 注入注解：
+- @Autowired：先按照byType去查找，再按照byName去查找。支持参数required=false。Spring注解。可以对构造器、方法、参数、字段上使用。
+  > 1.如果使用@Qualifier注解声明了name,则从结果集中找出与该name匹配的Bean。
+  > 2.如果未使用@Qualifier，优先取@Primary注解和@Priority注解的Bean,如果没有则按字段名称去匹配。
+- @Resource：在不指定 name 的情况下，默认的name是字段名或set方法标识的字段名称；如果默认的name或指定的name找不到bean,就会按 type 注入。JDK注解，方法、字段上使用。
+- @Inject： 默认是根据参数名去寻找bean注入，支持Spring的@Primary和@Priority注解优先注入，@Inject注解还可以增加@Named注解指定要注入的bean。JDK注解
+
+
+# 21、SpringBoot特点
 - 快速开发：SpringBoot简化Spring应用的创建过程，提供了默认配置，简化开发流程。
 - 内嵌容器：内嵌Servlet容器，应用被打包成可独立运行的Jar，可以直接运行 Java -jar启动web应用。
 - 自动配置：简化Maven配置，根据添加的依赖会自动进行合理的配置。
 - 监控指标：提供了一套基于Restful接口的监控指标(健康检查、指标收集等)，可以监控应用运行状态。
 
-# 12、SpringBoot 常用注解
+# 22、SpringBoot 常用注解
 
 
 @Service: 注解在类上，表示这是一个业务层bean
@@ -271,14 +286,14 @@ SEQUENCE：通过序列产生主键，通过 @SequenceGenerator 注解指定序�
 TABLE：通过表产生主键，框架借由表模拟序列产生主键，使用该策略可以使应用更易于数据库移植。
 
 
-# 20.SpringBoot：注解@ConditionalOnClass(X.class),X不存在时 会不会报错？
+# 23.SpringBoot：注解@ConditionalOnClass(X.class),X不存在时 会不会报错？
 
 - @ConditionalOnClass通常与@Configuration 结合使用，意思是当classpath中存在某类时满足条件。
 - 第三方jar包中maven依赖是有对应X的jar的，只是POM文件是<optional>true</optional>不依赖传递。第三方jar都是编译好的。项目启动不回编译错误。
 - 当我们项目中自定义的，如果没有对应的X.class编译会直接报错的。
 - 我们也可以不引用 对应的X.Class jar包。直接用 @ConditionalOnClass(name=包路径.类名)的方式
 
-# 21.Tomcat连接数相关配置
+# 24.Tomcat连接数相关配置
 
 ```
        server:
@@ -299,7 +314,7 @@ TABLE：通过表产生主键，框架借由表模拟序列产生主键，使用
 + Connection timeout 表示客户端没有收到服务器的响应，可能是因为网络问题或服务器繁忙
 
 
-# 22.SpringBoot的 jar 可以直接运行的原理
+# 25.SpringBoot的 jar 可以直接运行的原理
 - **结构**: Spring Boot的JAR文件不是传统的单一JAR，而是采用了所谓的“胖JAR”或“自包含JAR”结构。这种JAR内部包含了一个BOOT-INF目录与相关所有的依赖内容。
   ![](https://img2024.cnblogs.com/blog/1694759/202405/1694759-20240513181546440-886139466.png)
 

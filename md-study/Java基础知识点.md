@@ -4,6 +4,9 @@
 
 https://learning.snssdk.com/feoffline/toutiao_wallet_bundles/toutiao_learning_wap/online/article.html?item_id=6791308968099578376&app_name=news_article
 
+# 0.1 List相关知识
+ArrayList 默认容量是10,扩容为原来的1.5倍
+
 
 # 1. 偏向锁、轻量级锁、重量级锁竞争
 

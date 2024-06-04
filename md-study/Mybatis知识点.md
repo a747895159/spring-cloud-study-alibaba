@@ -26,20 +26,34 @@ Mybatis在处理${}时，就是把${}替换成变量的值。用于传入数据�
 1）类的名字和数据库相同时，可以直接设置 resultType 参数为 Pojo 类
 2）若不同，需要设置 resultMap 将结果名字和 Pojo 名字进行转换
 
+
 # 6.Mybatis一级缓存与二级缓存介绍
+- 1.Mybatis 中有一级缓存和二级缓存，默认情况下一级缓存是开启的。
+  - 一级缓存: 是指 SqlSession 级别的缓存，也就是说，同一个 SqlSession 对象所执行的查询结果会被缓存，下次相同 SqlSession 对象执行相同的查询，结果就会从缓存中取出，而不会重新执行数据库查询。
+  > 存最多缓存 1024 条 SQL.缓存使用的数据结构是一个 map。 key：MapperID+offset+limit+Sql+所有的入参
+  > 如果两次中间出现 commit 操作(修改、添加、删除)，本 sqlsession 中的一级缓存区域全部清空.
+
+  - 二级缓存: 指可以跨 SqlSession 的缓存,是 mapper 级别的缓存,默认关闭的。是通过 CacheExecutor 实现的. 具体使用需要配置：
+    > 1. Mybatis 全局配置中启用二级缓存配置，**cacheEnabled为true时**
+    > 2. 在对应的 Mapper.xml 中配置 cache 节点
+    > 3. 在对应的 select 查询节点中添加 useCache=true
+
+- 2.spring结合mybatis后，一级缓存作用：
+  - 非事务环境下每次都开启新的SqlSession，一级缓存失效
+  - 事务环境下，SqlSession引用计数申请与释放，缓存与事务的隔离级别配合，可能导致缓存一致性问题；
+
+- **3.Mybatis一级缓存和二级缓存都存在一定的脏数据问题，都不建议使用**。
+
+  - 线程安全问题：MyBatis的SqlSession并不是线程安全的
+  - 缓存命中率低：一级缓存只适用于同一个SqlSession，命中率很低。
+  - 内存泄露问题：MyBatis的一级缓存和二级缓存存储在内存中，
+  - 数据库事务问题：二级缓存如果存在多个数据库事务，会导致数据不一致问题，另外关联查询也会涉及脏数据问题。
 
 
-### 6.2 Mybatis缓存存在的问题：
-
-
-spring结合mybatis后，一级缓存作用：
-- 在未开启事物的情况之下，每次查询，spring都会关闭旧的sqlSession而创建新的sqlSession,因此此时的一级缓存是没有启作用的
-- 在开启事物的情况之下，spring使用threadLocal获取当前资源绑定同一个sqlSession，因此此时一级缓存是有效的
-
-
-### 6.3如何关闭一级缓存：
+**如何关闭一级缓存**
 
 ```
+一定要将MyBatis的localCacheScope属性设置为STATEMENT，查询时清空一级缓存
 <configuration>
     <settings>
         <setting name="localCacheScope" value="STATEMENT"/>
