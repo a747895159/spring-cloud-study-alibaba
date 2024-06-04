@@ -400,24 +400,6 @@ RocketMQ事务消息的实现原理是类似基于二阶段提交与事务状态
 	+ 支持事务消息、顺序消息
 
 
-### 12、有看过选主过程的源码吗？简述一下
-
-RocketMQ是一个开源项目，您可以在[Apache RocketMQ的官方GitHub仓库](https://github.com/apache/RocketMQ)中找到完整的源代码。
-
-以下是选主过程的源码简要描述：
-
-1. 首先，当一个Broker节点启动时，它会执行`org.apache.RocketMQ.broker.BrokerController`类中的`initialize()`方法，该方法用于初始化Broker节点的各个组件。
-2. 在`initialize()`方法中，会执行`org.apache.RocketMQ.broker.BrokerController`类中的`registerBrokerAll()`方法，该方法用于向NameServer注册Broker节点的相关信息。
-3. 在`registerBrokerAll()`方法中，会执行`org.apache.RocketMQ.namesrv.processor.RegisterBrokerProcessor`类中的`processRequest()`方法，该方法用于处理Broker节点注册的请求。
-4. 在`processRequest()`方法中，会执行`org.apache.RocketMQ.namesrv.routeinfo.RouteInfoManager`类中的`registerBroker()`方法，该方法用于将Broker节点的信息存储在内存中，并定期将这些信息持久化到磁盘上的文件中。
-5. 当一个Master节点宕机或失去连接时，NameServer会检测到这个变化，并将Master节点对应的Topic和队列信息标记为不可用。
-6. Slave节点会通过与NameServer的交互，获取到Master节点宕机的信息。具体的代码逻辑可以在`org.apache.RocketMQ.client.impl.factory.MQClientInstance`类中的`updateTopicRouteInfoFromNameServer()`方法中找到。
-7. Slave节点会尝试与其他可用的Master节点建立连接，并请求成为宕机Master节点的Slave节点。
-8. 如果其他Master节点同意将该Slave节点作为自己的Slave节点，那么该Slave节点将成为新的Master节点的Slave节点。具体的代码逻辑可以在`org.apache.RocketMQ.broker.BrokerController`类中的`slaveSynchronize()`方法中找到。
-9. 新的Master节点会将自己的写入操作同步给所有的Slave节点，以保证数据的一致性。具体的代码逻辑可以在`org.apache.RocketMQ.store.DefaultMessageStore`类中的`doDispatch()`方法中找到。
-10. 一旦宕机的Master节点恢复正常，它会尝试重新成为Master节点，而原来的Slave节点则会转变为它的Slave节点。具体的代码逻辑可以在`org.apache.RocketMQ.broker.BrokerController`类中的`rebalanceService()`方法中找到。
-
-
 ### 13、说说RocketMQ的ConsumeQueue消息的格式？
 
 在RocketMQ中，ConsumeQueue是用于存储消息消费进度的数据结构。它是基于文件的存储方式，每个主题（Topic）都有一个对应的ConsumeQueue文件。
@@ -477,5 +459,9 @@ ConsumeQueue中的消息格式如下：
 
 需要注意的是，RocketMQ的消息reput过程是基于分布式架构的，通过主从同步和消息复制机制保证消息的可靠性和一致性。同时，RocketMQ还提供了丰富的配置选项和监控工具，以便对消息的reput过程进行监控和调优。
 
-
-
+### 15、RocketMQ 常用部署模式
+单机模式
+多主模式
+双主双从/多主多从模式（异步复制）,故障手动处理
+双主双从/多主多从模式（同步双写）,故障手动处理
+Dledger 集群模式: 4.5版本之后,采用Raft协议,一主多从,故障可自动转移。
