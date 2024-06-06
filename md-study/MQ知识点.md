@@ -57,23 +57,23 @@ public class PullMessageService extends ServiceThread {
 - 如果请求失败，则等待PULL_TIME_DELAY_MILLS_WHEN_EXCEPTION(3000)后再放回PullMessageService的待处理队列中；处理成功则进入2.
 - 调用PullAPIWrapper对结果进行预处理
 - 根据请求状态进行处理
-  - 有新消息(FOUND)
-    - 设置PullRequest下次开始消费的起始位置为PullResult的nextBeginOffset
-    - 如果结果列表为空则不延迟，立马放到PullMessageService的待处理队列中，否则进入3
-    - 将PullResult中的结果List<MessageExt>放入ProcessQueue的缓存中，并通知ConsumeMessageService处理
-    - 将该PullRequest放回待处理队列中等待再次处理，如果有设置拉取的间隔时间，则等待该时间后再翻到队列中等待处理，否则直接放到队列中等待处理
-  - 没有新消息(NO_NEW_MSG)
-    - 设置PullRequest下次开始消费的起始位置为PullResult的nextBeginOffset
-    - 如果缓存的待消费消息数为0，则更新offset存储
-    - 将PullRequest立马放到PullMessageService的待处理队列中
-  - 没有匹配的消息(NO_MATCHED_MSG)
-    - 设置PullRequest下次开始消费的起始位置为PullResult的nextBeginOffset
-    - 如果缓存的待消费消息数为0，则更新offset存储
-    - 将PullRequest立马放到PullMessageService的待处理队列中
-  - 不合法的偏移量(OFFSET_ILLEGAL)
-    - 设置PullRequest下次开始消费的起始位置为PullResult的nextBeginOffset
-    - 标记该PullRequset为drop
-    - 10s后再更新并持久化消费offset；再通知Rebalance移除该MessageQueue
+    - 有新消息(FOUND)
+        - 设置PullRequest下次开始消费的起始位置为PullResult的nextBeginOffset
+        - 如果结果列表为空则不延迟，立马放到PullMessageService的待处理队列中，否则进入3
+        - 将PullResult中的结果List<MessageExt>放入ProcessQueue的缓存中，并通知ConsumeMessageService处理
+        - 将该PullRequest放回待处理队列中等待再次处理，如果有设置拉取的间隔时间，则等待该时间后再翻到队列中等待处理，否则直接放到队列中等待处理
+    - 没有新消息(NO_NEW_MSG)
+        - 设置PullRequest下次开始消费的起始位置为PullResult的nextBeginOffset
+        - 如果缓存的待消费消息数为0，则更新offset存储
+        - 将PullRequest立马放到PullMessageService的待处理队列中
+    - 没有匹配的消息(NO_MATCHED_MSG)
+        - 设置PullRequest下次开始消费的起始位置为PullResult的nextBeginOffset
+        - 如果缓存的待消费消息数为0，则更新offset存储
+        - 将PullRequest立马放到PullMessageService的待处理队列中
+    - 不合法的偏移量(OFFSET_ILLEGAL)
+        - 设置PullRequest下次开始消费的起始位置为PullResult的nextBeginOffset
+        - 标记该PullRequset为drop
+        - 10s后再更新并持久化消费offset；再通知Rebalance移除该MessageQueue
 
 - 每次从消费进度 拉取32个队列消息拉取成功后，将消息按照消费数(默认为1)分批放入消费者线程池中。
 
@@ -119,8 +119,8 @@ public void submitConsumeRequest(final List<MessageExt> msgs,final ProcessQueue 
 # 3.消息消费进度如何保存，包括MQ是如何知道消息是否正常被消费了。
 
 - 消息消费完成后，需要将消费进度存储起来，即前面提到的offset。广播模式下，同消费组的消费者相互独立，消费进度要单独存储；集群模式下，同一条消息只会被同一个消费组消费一次，消费进度会参与到负载均衡中，故消费进度是需要共享的。
-  - 消费进度相关类 OffsetStore：① LocalFileOffsetStore 本地存储消费进度的具体实现，给广播模式使用；② RemoteBrokerOffsetStore 给集群模式使用，将消费进度存储在broker。
-   - 入口在org.apache.rocketmq.client.impl.consumer.ConsumeMessageConcurrentlyService#processConsumeResult中的最后一段逻辑:
+    - 消费进度相关类 OffsetStore：① LocalFileOffsetStore 本地存储消费进度的具体实现，给广播模式使用；② RemoteBrokerOffsetStore 给集群模式使用，将消费进度存储在broker。
+    - 入口在org.apache.rocketmq.client.impl.consumer.ConsumeMessageConcurrentlyService#processConsumeResult中的最后一段逻辑:
 
 ```
 public void processConsumeResult(final ConsumeConcurrentlyStatus status,final ConsumeConcurrentlyContext context,final ConsumeRequest consumeRequest) {
@@ -139,10 +139,10 @@ public void processConsumeResult(final ConsumeConcurrentlyStatus status,final Co
 }
 ```
 
-   - 消息消费完成后，将消息从ProcessQueue中移除，同时返回ProcessQueue中最小的offset，使用这个offset值更新消费进度，removeMessage返回的offset有两种情况，一是已经没有消息了，返回ProcessQueue最大offset+1，二是还有消息，则返回未消费消息的最小offset。
-   - 举个例子，ProcessQueue中有offset为101-110的10条消息，如果全部消费完了，返回的offset为111；如果101未消费完成，102-110消费完成，则返回的offset为101，这种情况下如果消费者异常退出，会出现重复消费的风险，所以要求消费逻辑幂等。
-   - 看RemoteBrokerOffsetStore的updateOffset()逻辑，将offset更新到内存中，这里RemoteBrokerOffsetStore使用ConcurrentHashMap保存MessageQueue的消费进度：
-   - 在MQClientInstance启动的时候会注册定时任务，每5s执行一次persistAllConsumerOffset()，最终调用到persistAll().会将消费进度持久到远程Broker。
+- 消息消费完成后，将消息从ProcessQueue中移除，同时返回ProcessQueue中最小的offset，使用这个offset值更新消费进度，removeMessage返回的offset有两种情况，一是已经没有消息了，返回ProcessQueue最大offset+1，二是还有消息，则返回未消费消息的最小offset。
+- 举个例子，ProcessQueue中有offset为101-110的10条消息，如果全部消费完了，返回的offset为111；如果101未消费完成，102-110消费完成，则返回的offset为101，这种情况下如果消费者异常退出，会出现重复消费的风险，所以要求消费逻辑幂等。
+- 看RemoteBrokerOffsetStore的updateOffset()逻辑，将offset更新到内存中，这里RemoteBrokerOffsetStore使用ConcurrentHashMap保存MessageQueue的消费进度：
+- 在MQClientInstance启动的时候会注册定时任务，每5s执行一次persistAllConsumerOffset()，最终调用到persistAll().会将消费进度持久到远程Broker。
 
 - **消费进度先保存在内存中,然后定时5s将数据持久化到远程Broker**，offset读取：内存读,读取不到再远程读; 远程Broker读。
 
@@ -151,8 +151,8 @@ public void processConsumeResult(final ConsumeConcurrentlyStatus status,final Co
 -  pullMessage函数的参数是 final PullRequest pullRequest ，这是通过“长轮询”方式达到 Push效果的方法，长轮询方式既有 Pull 的优点。长轮询就是在Broker在没有新消息的时候才阻塞，阻塞时间默认设置是 15秒，有消息会立刻返回。
 -  Pull方式问题就是循环拉取消息时间间隔不好设定，间隔太短，浪费资源；间隔太长 消息没被及时处理。
 -  RocketMQ 是通过伪Push方式实现的推消息机制， 底层是使用“长轮询”方式达到 Push效果的,每次Pull一批消息放在队列中，然后交给子线程队列一个个处理。
-   - 长轮询拉取有流量控制 防止消息在消费者堆积。每个MessageQueue都有个对象的ProcessQueue对象（个 TreeMap 和一个读写锁 ）,TreeMap 以Offset为key 以消息内容为value。读写锁控制着多线程对 TreeMap的并发访问。
-   - 流量控制：①消息未处理个数 1000 ;②消息总大小100M；③Offset跨度 2000；
+    - 长轮询拉取有流量控制 防止消息在消费者堆积。每个MessageQueue都有个对象的ProcessQueue对象（个 TreeMap 和一个读写锁 ）,TreeMap 以Offset为key 以消息内容为value。读写锁控制着多线程对 TreeMap的并发访问。
+    - 流量控制：①消息未处理个数 1000 ;②消息总大小100M；③Offset跨度 2000；
 
 ```
     public class ProcessQueue {
@@ -187,7 +187,7 @@ public void processConsumeResult(final ConsumeConcurrentlyStatus status,final Co
     - 消费者流控；拉取的消息，放在另一个队列 messageQueue 缓存，拉取之前，会进行流控检查，如果这个队列满了（>1000个消息或者 >100M内存、消息跨度超过consumeConcurrentlyMaxSpan >2000） 则延迟50ms再拉取。下一次执行拉取之前，同样也会进行流控检查
     - 应用程序对消息的拉取过程参与度不高，可控性不足，仅仅提供消息监听器的实现。
 
-- DefaultMQPullConsumer  读取操作中的大部分功能由使用者自主控制，要注意Offset的保存与同步。发送到broker的提交位移永远都是0，所以broker无法记录有效位移，需要程序自己记录和控制提交位移。 
+- DefaultMQPullConsumer  读取操作中的大部分功能由使用者自主控制，要注意Offset的保存与同步。发送到broker的提交位移永远都是0，所以broker无法记录有效位移，需要程序自己记录和控制提交位移。
     - 应用程序对消息的拉取过程参与度高，由可控性高，可以自主决定何时进行消息拉取，从什么位置offset拉取消息
 
 ```
@@ -250,12 +250,12 @@ consumer.shutdown();
 
 - 1.Broker中在类RebalanceLockManager d的静态变量 mqLockTable (变量类型为 ConcurrentMap)中存储了以消费组 为key ,以 ConcurrentMap (以消息主题，主题下队列为key，具体信息是消费者客户端id 为和客户端上次锁定时间 为value的 LockEntity 对象）为value的消费者锁定信息;
 - 2.broker 接受请求后执行 RebalanceLockManager 的 tryLockBatch方法,执行顺序如下：
-	+ 1.请求参数解析，解析成 要锁定的主题下队列集合和消费者ID；
-	+ 2.遍历请求锁定的队列
-	+ 3.通过 mqLockTable 判断单个队列是否已经锁定,即调用 LockEntry 的 isLocked 方法,主要是判断 clientId 是否是当前消费者ID,如果是就更新锁定时间，并加入已经锁定队列中,如果 mqLockTable 不存在 这个消费组或者当前锁定的clientId与请求的clientId 不相等，就加入未锁定队列;
-	+ 4.判断未锁定队列是否为空，不为空,判断当前消费组是否在mqLockTable 中,不存在就创建,后启用 RebalanceLockManager的可重入锁，遍历未锁定队列.
-	+ 5.执行第3步
-	+ 6.释放 RebalanceLockManager 的可重入锁，返回当前锁定的信息。
+    + 1.请求参数解析，解析成 要锁定的主题下队列集合和消费者ID；
+    + 2.遍历请求锁定的队列
+    + 3.通过 mqLockTable 判断单个队列是否已经锁定,即调用 LockEntry 的 isLocked 方法,主要是判断 clientId 是否是当前消费者ID,如果是就更新锁定时间，并加入已经锁定队列中,如果 mqLockTable 不存在 这个消费组或者当前锁定的clientId与请求的clientId 不相等，就加入未锁定队列;
+    + 4.判断未锁定队列是否为空，不为空,判断当前消费组是否在mqLockTable 中,不存在就创建,后启用 RebalanceLockManager的可重入锁，遍历未锁定队列.
+    + 5.执行第3步
+    + 6.释放 RebalanceLockManager 的可重入锁，返回当前锁定的信息。
 - 3.consumer 上顺序消费的类有个定时任务，每隔20去向broke 发送它订阅的topic 的锁定请求。
 - 4.consumer 上在获取到队列的消息的时候，让消费线程池去处理，处理前必须获取到本地队列的锁。参考：ConsumeMessageOrderlyService.ConsumeRequest 类。
 
@@ -276,12 +276,12 @@ consumer.shutdown();
 - NameServer是一个几乎无状态节点，可集群部署，节点之间无任何信息同步。
   Broker部署相对复杂，Broker分为Master与Slave，一个Master可以对应多个Slave，但是一个Slave只能对应一个Master，Master与Slave 的对应关系通过指定相同的BrokerName，不同的BrokerId 来定义，BrokerId为0表示Master，非0表示Slave。Master也可以部署多个。每个Broker与NameServer集群中的所有节点建立长连接，定时注册Topic信息到所有NameServer。 注意：当前RocketMQ版本在部署架构上支持一Master多Slave，但只有BrokerId=1的从服务器才会参与消息的读负载。
   Producer与NameServer集群中的其中一个节点（随机选择）建立长连接，定期从NameServer获取Topic路由信息，并向提供Topic 服务的Master建立长连接，且定时向Master发送心跳。Producer完全无状态，可集群部署。
-  Consumer与NameServer集群中的其中一个节点（随机选择）建立长连接，定期从NameServer获取Topic路由信息，并向提供Topic服务的Master、Slave建立长连接，且定时向Master、Slave发送心跳。Consumer既可以从Master订阅消息，也可以从Slave订阅消息，消费者在向Master拉取消息时，Master服务器会根据拉取偏移量与最大偏移量的距离（判断是否读老消息，产生读I/O），以及从服务器是否可读等因素建议下一次是从Master还是Slave拉取。
-  启动NameServer，NameServer起来后监听端口，等待Broker、Producer、Consumer连上来，相当于一个路由控制中心。
+  Consumer与NameServer集群中的其中一个节点（随机选择）建立长连接，定期从NameServer获取Topic路由信息，并向提供Topic服务的Master、Slave建立长连接，且定时向Master、Slave发送心跳。Consumer既可以从Master订阅消息，也可以从Slave订阅消息，消费者在向Master拉取消息时，Master服务器会根据拉取偏移量与最大偏移量的距离（判断是否读老消息，产生读I/O），以及从服务器是否可读等因素建议下一次是从Master还是Slave拉取。生产者每 30 秒从 Namesrv 获取 Topic 跟 Broker 的映射关系，更新到本地内存中。然后再跟 Topic 涉及的所有 Broker 建立长连接，每隔 30 秒发一次心跳。
+- 启动NameServer，NameServer起来后监听端口，等待Broker、Producer、Consumer连上来，相当于一个路由控制中心。
   Broker启动，跟所有的NameServer保持长连接，定时发送心跳包。心跳包中包含当前Broker信息(IP+端口等)以及存储所有Topic信息。注册成功后，NameServer集群中就有Topic跟Broker的映射关系。
   收发消息前，先创建Topic，创建Topic时需要指定该Topic要存储在哪些Broker上，也可以在发送消息时自动创建Topic。
   Producer发送消息，启动时先跟NameServer集群中的其中一台建立长连接，并从NameServer中获取当前发送的Topic存在哪些Broker上，轮询从队列列表中选择一个队列，然后与队列所在的Broker建立长连接从而向Broker发消息。
-  Consumer跟Producer类似，跟其中一台NameServer建立长连接，获取当前订阅Topic存在哪些Broker上，然后直接跟Broker建立连接通道，开始消费消息。    
+  Consumer跟Producer类似，跟其中一台NameServer建立长连接，获取当前订阅Topic存在哪些Broker上，然后直接跟Broker建立连接通道，开始消费消息。  每隔 30 秒发一次心跳。
 
 # 7.Topic路由注册与剔除流程：
 
@@ -295,16 +295,16 @@ consumer.shutdown();
 ![](https://img2020.cnblogs.com/blog/1694759/202111/1694759-20211116145625523-1563475991.png)
 
 + 其职责是负责消息消费队列的负载，默认以20s的间隔按照队列负载算法进行队列分配，如果此次分配到的队列与上一次分配的队列不相同，则需要触发消息队列的更新操作：
-  * A.如果是新分配的队列，则创建 PullReqeust 对象(拉取消息任务)，添加到 PullMessageService 线程内部的阻塞队列 pullRequestQueue 中。如果该队列中存在拉取任务，则 PullMessageService 会向 Broker 拉取消息。
-  * B.如果是上次分配但本次未分配的队列，将其处理队列 ProcessQueue 的状态设置为丢弃，然后 PullMessageService 线程在根据 PullRequest 拉取消息时首先会判断 ProcessQueue 队列的状态，如果是已丢弃状态，则直接丢弃 PullRequest 对象，停止拉取该队列中的消息，否则向Broker 拉取消息，拉取到一批消息后，提交到一个处理线程池，然后继续将 PullRequest 对象添加到 pullRequestQueue，即很快就会再次触发对该消息消费队列的再次拉取，这也是 RocketMQ 实现 PUSH 模式的本质。
+    * A.如果是新分配的队列，则创建 PullReqeust 对象(拉取消息任务)，添加到 PullMessageService 线程内部的阻塞队列 pullRequestQueue 中。如果该队列中存在拉取任务，则 PullMessageService 会向 Broker 拉取消息。
+    * B.如果是上次分配但本次未分配的队列，将其处理队列 ProcessQueue 的状态设置为丢弃，然后 PullMessageService 线程在根据 PullRequest 拉取消息时首先会判断 ProcessQueue 队列的状态，如果是已丢弃状态，则直接丢弃 PullRequest 对象，停止拉取该队列中的消息，否则向Broker 拉取消息，拉取到一批消息后，提交到一个处理线程池，然后继续将 PullRequest 对象添加到 pullRequestQueue，即很快就会再次触发对该消息消费队列的再次拉取，这也是 RocketMQ 实现 PUSH 模式的本质。
 
 - 消费者消费线程池处理完一条消息时，消费者需要向 Broker 汇报消费的进度，以防消息重复消费。这样当消费者重启后，指示消费者应该从哪条消息开始消费。并发消费模式下，由于多线程消费的缘故，提交到线程池消费的消息默认情况下无法保证消息消费的顺序。
 
 - 在 PUSH 模式下，PullMessageService拉取完一批消息后，将消息提交到线程池后会“马不蹄停”去拉下一批消息，如果此时消息消费线程池处理速度很慢，处理队列中的消息会越积越多，占用的内存也随之飙升，最终引发内存溢出，更加不能接受的消息消费进度并不会向前推进，因为只要该处理队列中偏移量最小的消息未处理完成，整个消息消费进度则无法向前推进，如果消费端重启，又得重复拉取消息并造成大量消息重复消费。RocketMQ 解决该问题的策略是引入消费端的限流机制。
 
 * RocketMQ 消息消费端的限流的两个维度：
-      +  A.消息堆积数量:如果消息消费处理队列中的消息条数超过1000条会触发消费端的流控，其具体做法是放弃本次拉取动作，并且延迟50ms后将放入该拉取任务放入到pullRequestQueue中，每1000次流控会打印一次消费端流控日志。
-      - B.消息堆积大小：如果处理队列中堆积的消息总内存大小超过100M，同样触发一次流控。
+  +  A.消息堆积数量:如果消息消费处理队列中的消息条数超过1000条会触发消费端的流控，其具体做法是放弃本次拉取动作，并且延迟50ms后将放入该拉取任务放入到pullRequestQueue中，每1000次流控会打印一次消费端流控日志。
+  - B.消息堆积大小：如果处理队列中堆积的消息总内存大小超过100M，同样触发一次流控。
 
 ```
 public void start() throws MQClientException {
@@ -337,11 +337,11 @@ public void start() throws MQClientException {
         }
     }
 }
-	
+    
 ```
 
 
-![](https://img2024.cnblogs.com/blog/1694759/202404/1694759-20240429101941894-1113414868.png)
+
 
 
 # 9.主从同步(HA):
@@ -371,36 +371,29 @@ RocketMQ事务消息的实现原理是类似基于二阶段提交与事务状态
 # 11.RocketMQ 与 Kafka 区别
 
 - 1.架构区别
-	+ RocketMQ由NameServer、Broker、Consumer、Producer组成，NameServer之间互不通信，Broker会向所有的nameServer注册，通过心跳判断broker是否存活，producer和consumer 通过nameserver就知道broker上有哪些topic。
-	+ Kafka的元数据信息都是保存在Zookeeper，新版本部分已经存放到了Kafka内部了，由Broker、Zookeeper、Producer、Consumer组成。
-
+    + RocketMQ由NameServer、Broker、Consumer、Producer组成，NameServer之间互不通信，Broker会向所有的nameServer注册，通过心跳判断broker是否存活，producer和consumer 通过nameserver就知道broker上有哪些topic。
+    + Kafka的元数据信息都是保存在Zookeeper，新版本部分已经存放到了Kafka内部了，由Broker、Zookeeper、Producer、Consumer组成。
+    + 两者都支持事务消息（ kafka从0.11.0.0 版本）、顺序消息。
 - 2.维度区别
-	+ Kafka的master/slave是基于partition(分区)维度的，而RocketMQ是基于Broker维度的；Kafka的master/slave是可以切换的（主要依靠于Zookeeper的主备切换机制）RocketMQ无法实现自动切换，当RocketMQ的Master宕机时，读能被路由到slave上，但写会被路由到此topic的其他Broker上。
-
+    + Kafka的master/slave是基于partition(分区)维度的，而RocketMQ是基于Broker维度的；Kafka的master/slave是可以切换的（主要依靠于Zookeeper的主备切换机制）RocketMQ无法实现自动切换，当RocketMQ的Master宕机时，读能被路由到slave上，但写会被路由到此topic的其他Broker上。
 - 3.刷盘机制
-	+ RocketMQ支持同步刷盘，也就是每次消息都等刷入磁盘后再返回，保证消息不丢失，但对吞吐量稍有影响。一般在主从结构下，选择异步双写策略是比较可靠的选择。
-
+    + RocketMQ支持同步刷盘，也就是每次消息都等刷入磁盘后再返回，保证消息不丢失，但对吞吐量稍有影响。一般在主从结构下，选择异步双写策略是比较可靠的选择。kafka也支持同步刷盘。
 - 4.消息查询
-	+ RocketMQ支持消息查询，除了queue的offset外，还支持自定义key。RocketMQ对offset和key都做了索引，均是独立的索引文件。
-
+    + RocketMQ支持消息查询，除了queue的offset外，还支持自定义key。RocketMQ对offset和key都做了索引，均是独立的索引文件。
 - 5.服务治理
-	+ Kafka用Zookeeper来做服务发现和治理，broker和consumer都会向其注册自身信息，同时订阅相应的znode，这样当有broker或者consumer宕机时能立刻感知，做相应的调整；
-	+ RocketMQ用自定义的nameServer做服务发现和治理，其实时性差点，比如如果broker宕机，producer和consumer不会实时感知到，需要等到下次更新broker集群时(最长30S)才能做相应调整，服务有个不可用的窗口期，但数据不会丢失，且能保证一致性。但是某个consumer宕机，broker会实时反馈给其他consumer，立即触发负载均衡，这样能一定程度上保证消息消费的实时性。
-	
+    + Kafka用Zookeeper来做服务发现和治理，broker和consumer都会向其注册自身信息，同时订阅相应的znode，这样当有broker或者consumer宕机时能立刻感知，做相应的调整；
+    + RocketMQ用自定义的nameServer做服务发现和治理，其实时性差点，比如如果broker宕机，producer和consumer不会实时感知到，需要等到下次更新broker集群时(最长30S)才能做相应调整，服务有个不可用的窗口期，但数据不会丢失，且能保证一致性。但是某个consumer宕机，broker会实时反馈给其他consumer，立即触发负载均衡，这样能一定程度上保证消息消费的实时性。
 - 6.消费确认
-	+ RocketMQ仅支持手动确认，也就是消费完一条消息ack+1，会定期向broker同步消费进度，或者在下一次pull时附带上offset。
-	+ Kafka支持定时确认，拉取到消息自动确认和手动确认，offset存在zookeeper上。
-
+    + RocketMQ仅支持手动确认，也就是消费完一条消息ack+1，会定期向broker同步消费进度，或者在下一次pull时附带上offset。
+    + Kafka支持定时确认，拉取到消息自动确认和手动确认，offset存在zookeeper上。
 - 7.消息回溯
-	+ Kafka理论上可以按照Offset来回溯消息。
-	+ RocketMQ支持按照Offset和时间来回溯消息，精度毫秒，例如从一天之前的某时某分某秒开始重新消费消息，典型业务场景如consumer做订单分析，但是由于程序逻辑或者依赖的系统发生故障等原因，导致今天消费的消息全部无效，需要重新从昨天零点开始消费，那么以时间为起点的消息重放功能对于业务非常有帮助。
-	
+    + Kafka理论上可以按照Offset来回溯消息。
+    + RocketMQ支持按照Offset和时间来回溯消息，精度毫秒，例如从一天之前的某时某分某秒开始重新消费消息，典型业务场景如consumer做订单分析，但是由于程序逻辑或者依赖的系统发生故障等原因，导致今天消费的消息全部无效，需要重新从昨天零点开始消费，那么以时间为起点的消息重放功能对于业务非常有帮助。
 - 8.RocketMQ特有
-	+ 支持tag
-	+ 支持事务消息、顺序消息
+    + 支持tag
 
 
-### 13、说说RocketMQ的ConsumeQueue消息的格式？
+# 13、说说RocketMQ的ConsumeQueue消息的格式？
 
 在RocketMQ中，ConsumeQueue是用于存储消息消费进度的数据结构。它是基于文件的存储方式，每个主题（Topic）都有一个对应的ConsumeQueue文件。
 
@@ -442,7 +435,7 @@ ConsumeQueue中的消息格式如下：
 
 
 
-### 14、说说消息的reput过程？
+# 14、说说消息的reput过程？
 
 在RocketMQ中，消息的reput过程是指对消息的可靠性和一致性进行保障的过程。RocketMQ是一个分布式消息队列系统，用于实现高可靠性、高吞吐量的消息传递。
 
@@ -459,9 +452,72 @@ ConsumeQueue中的消息格式如下：
 
 需要注意的是，RocketMQ的消息reput过程是基于分布式架构的，通过主从同步和消息复制机制保证消息的可靠性和一致性。同时，RocketMQ还提供了丰富的配置选项和监控工具，以便对消息的reput过程进行监控和调优。
 
-### 15、RocketMQ 常用部署模式
+# 15、RocketMQ 常用部署模式
+
 单机模式
 多主模式
 双主双从/多主多从模式（异步复制）,故障手动处理
 双主双从/多主多从模式（同步双写）,故障手动处理
 Dledger 集群模式: 4.5版本之后,采用Raft协议,一主多从,故障可自动转移。
+
+
+
+# 16.RocketMQ最大消息大小
+
+集群消费 和 广播消费
+
+RocketMQ默认最大消息大小通常是 4 MB。调整最大消息大小注意：
+
+- broker 端调整 maxMessageSize
+- 生产者端已通过 setMaxMessageSize 方法设置了更大的消息大小
+
+
+
+# 17.RocketMQ 如何保证消息不丢失？
+
+- Producer端：同步发送,默认3次。
+- Broker端:	修改刷盘策略为同步刷盘。默认情况下是异步刷盘的,集群部署
+- Consumer端: 完全消费正常后在进行手动 ack 确认.
+
+
+
+# 60.kafka最大消息大小
+
+Kafka服务器默认最大消息大小通常是 1 MB。调整最大消息大小注意：
+
+- broker 端调整 message.max.bytes，
+- 生产者端调整 max.request.size
+- 消费者端调整 max.partition.fetch.bytes，确保这些值都适当地设置以允许更大消息的传输，并且要保证生产者的配置不超过 broker 端的限制。
+- 副本同步message.max.bytes 的值必须小于等于 replica.fetch.max.bytes。
+
+# 61、Kafka 为什么不支持读写分离?。
+
+Leader/Follower 模型并没有规定 Follower 副本不可以对外提供读服务。很多框架都是允许这么做的，只是 Kafka 最初为了避免不一致性的问题，而采用了让 Leader 统一提供服 务的方式。Kafka 2.4 之后，Kafka 提供了有限度的读写分离，也就是说，Follower 副本能够对外提供读服务。
+
+之前的版本不支持读写分离的理由。
+
+- 场景不适用。读写分离适用于那种读负载很大，而写操作相对不频繁的场景，可 Kafka 不属于这样的场景。
+- 同步机制。Kafka 采用 PULL 方式实现 Follower 的同步，因此，Follower 与 Leader 存 在不一致性窗口。如果允许读 Follower 副本，就势必要处理消息滞后(Lagging)的问题。
+
+
+
+# 62.kafka 的 ack 机制
+
+request.required.acks 有三个值 0、1、 -1(ALL)
+
+-  0:  生产者不会等待 broker 的 ack，这个延迟最低但是存储的保证最弱当 server 挂掉的时候
+   就会丢数据
+-  1: 服务端会等待 ack 值 leader 副本确认接收到消息后发送 ack 但是如果 leader 挂掉后他
+   不确保是否复制完成新 leader 也会导致数据丢失
+-   -1(ALL) : 同样在 1 的基础上 服务端会等所有的 follower 的副本受到数据后才会受到 leader 发出
+    的 ack，这样数据不会丢失
+
+# 63.kafka如何实现每秒上百万的超高并发写入
+
+- 页缓存技术： 每次接收到数据直接写入OSCache中
+- 磁盘顺序写：每次都是追加文件末尾顺序写的方式.
+    - 刷盘策略：
+        - acks=all配置表示生产者只有在所有副本确认收到消息后才认为消息发送成功，这增加了消息的持久性。
+        - ISR（In-Sync Replica）列表中的大多数副本时，才被认为是已提交（committed）。
+    - log.flush.interval.messages和log.flush.interval.ms控制了数据多久或者积累多少条消息后刷盘，减少数据在内存中停留的时间，降低数据丢失风险。
+- 零Copy： 直接让操作系统的 Cache 中的数据发送到网卡后传输给下游的消费者。跳过数据Copy应用内存。
