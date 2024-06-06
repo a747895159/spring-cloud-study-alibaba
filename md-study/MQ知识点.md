@@ -303,8 +303,10 @@ consumer.shutdown();
 - 在 PUSH 模式下，PullMessageService拉取完一批消息后，将消息提交到线程池后会“马不蹄停”去拉下一批消息，如果此时消息消费线程池处理速度很慢，处理队列中的消息会越积越多，占用的内存也随之飙升，最终引发内存溢出，更加不能接受的消息消费进度并不会向前推进，因为只要该处理队列中偏移量最小的消息未处理完成，整个消息消费进度则无法向前推进，如果消费端重启，又得重复拉取消息并造成大量消息重复消费。RocketMQ 解决该问题的策略是引入消费端的限流机制。
 
 * RocketMQ 消息消费端的限流的两个维度：
-  +  A.消息堆积数量:如果消息消费处理队列中的消息条数超过1000条会触发消费端的流控，其具体做法是放弃本次拉取动作，并且延迟50ms后将放入该拉取任务放入到pullRequestQueue中，每1000次流控会打印一次消费端流控日志。
-  - B.消息堆积大小：如果处理队列中堆积的消息总内存大小超过100M，同样触发一次流控。
+
+    +  A.消息堆积数量:如果消息消费处理队列中的消息条数超过1000条会触发消费端的流控，其具体做法是放弃本次拉取动作，并且延迟50ms后将放入该拉取任务放入到pullRequestQueue中，每1000次流控会打印一次消费端流控日志。
+
+    - B.消息堆积大小：如果处理队列中堆积的消息总内存大小超过100M，同样触发一次流控。
 
 ```
 public void start() throws MQClientException {
@@ -371,26 +373,55 @@ RocketMQ事务消息的实现原理是类似基于二阶段提交与事务状态
 # 11.RocketMQ 与 Kafka 区别
 
 - 1.架构区别
+
     + RocketMQ由NameServer、Broker、Consumer、Producer组成，NameServer之间互不通信，Broker会向所有的nameServer注册，通过心跳判断broker是否存活，producer和consumer 通过nameserver就知道broker上有哪些topic。
     + Kafka的元数据信息都是保存在Zookeeper，新版本部分已经存放到了Kafka内部了，由Broker、Zookeeper、Producer、Consumer组成。
     + 两者都支持事务消息（ kafka从0.11.0.0 版本）、顺序消息。
+
 - 2.维度区别
-    + Kafka的master/slave是基于partition(分区)维度的，而RocketMQ是基于Broker维度的；Kafka的master/slave是可以切换的（主要依靠于Zookeeper的主备切换机制）RocketMQ无法实现自动切换，当RocketMQ的Master宕机时，读能被路由到slave上，但写会被路由到此topic的其他Broker上。
+
+    + Kafka的master/slave是基于partition(分区)维度的，而RocketMQ是基于Broker维度的；
+    + Kafka的master/slave是可以切换的（主要依靠于Zookeeper的主备切换机制）
+    + RocketMQ无法实现自动切换，当RocketMQ的Master宕机时，读能被路由到slave上，但写会被路由到此topic的其他Broker上。在4.5之后的版本有DLedger多副本机制，可以自动故障切换。
+
 - 3.刷盘机制
+
     + RocketMQ支持同步刷盘，也就是每次消息都等刷入磁盘后再返回，保证消息不丢失，但对吞吐量稍有影响。一般在主从结构下，选择异步双写策略是比较可靠的选择。kafka也支持同步刷盘。
+
 - 4.消息查询
+
     + RocketMQ支持消息查询，除了queue的offset外，还支持自定义key。RocketMQ对offset和key都做了索引，均是独立的索引文件。
+
 - 5.服务治理
-    + Kafka用Zookeeper来做服务发现和治理，broker和consumer都会向其注册自身信息，同时订阅相应的znode，这样当有broker或者consumer宕机时能立刻感知，做相应的调整；
+
+    + Kafka用Zookeeper来做服务发现和治理，broker和consumer都会向其注册自身信息，同时watch机制订阅相应的znode，这样当有broker或者consumer宕机时能立刻感知，做相应的调整；
     + RocketMQ用自定义的nameServer做服务发现和治理，其实时性差点，比如如果broker宕机，producer和consumer不会实时感知到，需要等到下次更新broker集群时(最长30S)才能做相应调整，服务有个不可用的窗口期，但数据不会丢失，且能保证一致性。但是某个consumer宕机，broker会实时反馈给其他consumer，立即触发负载均衡，这样能一定程度上保证消息消费的实时性。
+
 - 6.消费确认
+
     + RocketMQ仅支持手动确认，也就是消费完一条消息ack+1，会定期向broker同步消费进度，或者在下一次pull时附带上offset。
-    + Kafka支持定时确认，拉取到消息自动确认和手动确认，offset存在zookeeper上。
+    + Kafka支持定时确认、拉取到消息自动确认、手动确认，offset存在zookeeper上。
+
 - 7.消息回溯
+
     + Kafka理论上可以按照Offset来回溯消息。
     + RocketMQ支持按照Offset和时间来回溯消息，精度毫秒，例如从一天之前的某时某分某秒开始重新消费消息，典型业务场景如consumer做订单分析，但是由于程序逻辑或者依赖的系统发生故障等原因，导致今天消费的消息全部无效，需要重新从昨天零点开始消费，那么以时间为起点的消息重放功能对于业务非常有帮助。
-- 8.RocketMQ特有
-    + 支持tag
+
+- 8.数据写入：
+
+    - kafka每个partition独占一个目录，每个partition均有各自的数据文件.log；而rocketmq是每个topic共享一个数据文件commitlog因为kafka的topic一般有多个partition，所以kafka的数据写入熟读比rocketmq高出一个量级。但超过一定数量的文件同时写入，会导致原先的顺序写转为随机写，性能急剧下降，所以kafka的分区数量是有限制的。
+
+- 9.特有
+
+    + RocketMQ支持tag、支持延时消息、消息重试机制、支持按时间和offset回溯
+    + Kafka
+
+- 10.两者都高性能
+
+    - **页缓存技术**、**磁盘顺序写**、**内存映射文件**、**零Copy技术**
+    - Kafka量级19w/s   RocketMQ 12w/s
+
+
 
 
 # 13、说说RocketMQ的ConsumeQueue消息的格式？
@@ -476,7 +507,7 @@ RocketMQ默认最大消息大小通常是 4 MB。调整最大消息大小注意�
 # 17.RocketMQ 如何保证消息不丢失？
 
 - Producer端：同步发送,默认3次。
-- Broker端:	修改刷盘策略为同步刷盘。默认情况下是异步刷盘的,集群部署
+- Broker端:  修改刷盘策略为同步刷盘。默认情况下是异步刷盘的,集群部署
 - Consumer端: 完全消费正常后在进行手动 ack 确认.
 
 
@@ -509,15 +540,16 @@ request.required.acks 有三个值 0、1、 -1(ALL)
    就会丢数据
 -  1: 服务端会等待 ack 值 leader 副本确认接收到消息后发送 ack 但是如果 leader 挂掉后他
    不确保是否复制完成新 leader 也会导致数据丢失
--   -1(ALL) : 同样在 1 的基础上 服务端会等所有的 follower 的副本受到数据后才会受到 leader 发出
-    的 ack，这样数据不会丢失
+-  -1(ALL) : 同样在 1 的基础上 服务端会等所有的 follower 的副本受到数据后才会受到 leader 发出
+   的 ack，这样数据不会丢失
 
 # 63.kafka如何实现每秒上百万的超高并发写入
 
-- 页缓存技术： 每次接收到数据直接写入OSCache中
-- 磁盘顺序写：每次都是追加文件末尾顺序写的方式.
+- **页缓存技术**： 每次接收到数据直接写入OSCache中
+- **磁盘顺序写**：每次都是追加文件末尾顺序写的方式.
     - 刷盘策略：
         - acks=all配置表示生产者只有在所有副本确认收到消息后才认为消息发送成功，这增加了消息的持久性。
         - ISR（In-Sync Replica）列表中的大多数副本时，才被认为是已提交（committed）。
     - log.flush.interval.messages和log.flush.interval.ms控制了数据多久或者积累多少条消息后刷盘，减少数据在内存中停留的时间，降低数据丢失风险。
-- 零Copy： 直接让操作系统的 Cache 中的数据发送到网卡后传输给下游的消费者。跳过数据Copy应用内存。
+- **零Copy**： 直接让操作系统的 Cache 中的数据发送到网卡后传输给下游的消费者。跳过数据Copy应用内存。
+- **内存映射文件**：将文件映射到内存地址空间，减少了数据复制的开销。
