@@ -48,6 +48,8 @@ public class PullMessageService extends ServiceThread {
 
 - PullMessageService类中也对应定时器，拉取队列消息。 参考 DefaultMQPushConsumerImpl.pullMessage方法实现。
 - 如果消费者状态非Running、暂停、队列消息总数大于1000、已拉取队列的缓存大于100M, 消费者进度大于2000、异常等都会进入 延迟执行  this.executePullRequestLater(pullRequest, PULL_TIME_DELAY_MILLS_WHEN_FLOW_CONTROL) 。延迟执行逻辑还是 将PullRequest 放入 PullMessageService.pullRequestQueue队列中。
+    - 消费者进度大于2000：出现这种情况也是非常有可能的，其主要原因就是消费偏移量为 100 的这个线程由于某种情况卡主了（“阻塞”了），其他消息却能正常消费，这种情况虽然不会造成内存溢出，但大概率会造成大量消息重复消费，究其原因与消息消费进度的提交机制有关，在 RocketMQ 中，例如消息偏移量为 2001 的消息消费成功后，向服务端汇报消费进度时并不是报告 2001，而是取处理队列中最小偏移量 100，这样虽然消息一直在处理，但消息消费进度始终无法向前推进，试想一下如果此时最大的消息偏移量为 1000，项目组发现出现了消息积压，然后重启消费端，那消息就会从 100 开始重新消费，会造成大量消息重复消费，RocketMQ 为了避免出现大量消息重复消费，故对此种情况会对其进行限制，超过 2000 就不再拉取消息了。
+
 
 ![](https://img2020.cnblogs.com/blog/1694759/202111/1694759-20211118204743940-2077611872.png)
 
@@ -246,18 +248,20 @@ consumer.shutdown();
 
 - RocketMQ消息消费模式如下图：
 
+![](https://img2024.cnblogs.com/blog/1694759/202406/1694759-20240607141854626-811717059.png)
+
 ![](https://img2020.cnblogs.com/blog/1694759/202111/1694759-20211119134255577-809940184.png)
 
-- 1.Broker中在类RebalanceLockManager d的静态变量 mqLockTable (变量类型为 ConcurrentMap)中存储了以消费组 为key ,以 ConcurrentMap (以消息主题，主题下队列为key，具体信息是消费者客户端id 为和客户端上次锁定时间 为value的 LockEntity 对象）为value的消费者锁定信息;
-- 2.broker 接受请求后执行 RebalanceLockManager 的 tryLockBatch方法,执行顺序如下：
+- 1.第一把锁，Broker中在类RebalanceLockManager的静态变量 mqLockTable (变量类型为 ConcurrentMap)中存储了以消费组 为key ,以 ConcurrentMap (以消息主题，主题下队列为key，具体信息是消费者客户端id 为和客户端上次锁定时间 为value的 LockEntity 对象）为value的消费者锁定信息;
+- 2.第二把锁分布式锁，broker接受请求后执行RebalanceLockManager 的 tryLockBatch方法。保证同一个consumerGroup下同一个messageQueue只会被分配给一个consumerClient。执行顺序如下：
     + 1.请求参数解析，解析成 要锁定的主题下队列集合和消费者ID；
     + 2.遍历请求锁定的队列
     + 3.通过 mqLockTable 判断单个队列是否已经锁定,即调用 LockEntry 的 isLocked 方法,主要是判断 clientId 是否是当前消费者ID,如果是就更新锁定时间，并加入已经锁定队列中,如果 mqLockTable 不存在 这个消费组或者当前锁定的clientId与请求的clientId 不相等，就加入未锁定队列;
     + 4.判断未锁定队列是否为空，不为空,判断当前消费组是否在mqLockTable 中,不存在就创建,后启用 RebalanceLockManager的可重入锁，遍历未锁定队列.
     + 5.执行第3步
     + 6.释放 RebalanceLockManager 的可重入锁，返回当前锁定的信息。
-- 3.consumer 上顺序消费的类有个定时任务，每隔20去向broke 发送它订阅的topic 的锁定请求。
-- 4.consumer 上在获取到队列的消息的时候，让消费线程池去处理，处理前必须获取到本地队列的锁。参考：ConsumeMessageOrderlyService.ConsumeRequest 类。
+- 3.第三把锁分布式锁，consumer上顺序消费的类有个定时任务，每隔20秒去向broke发送它订阅的topic的锁定队列请求。
+- 4.第四把锁，consumer上在获取到队列的消息的时候，让消费线程池去处理，处理前必须获取到本地队列的锁。参考：ConsumeMessageOrderlyService.ConsumeRequest 类。
 
 
 # 6. RocketMQ 业务名词含义。
@@ -266,7 +270,7 @@ consumer.shutdown();
   broker会调度地消费SCHEDULE_TOPIC_XXXX，将消息写入真实的topic。
 - 消息重试: 生产者在发送消息时，同步消息失败会重投，异步消息有重试，oneway没有任何保证。消息重投保证消息尽可能发送成功、不丢失，但可能会造成消息重复，消息重复在RocketMQ中是无法避免的问题。消息重复在一般情况下不会发生，当出现消息量大、网络抖动，消息重复就会是大概率事件。另外，生产者主动重发、consumer负载变化也会导致重复消息。
 
-- NameServer：NameServer是一个非常简单的Topic路由注册中心，其角色类似Dubbo中的zookeeper，支持Broker的动态注册与发现。主要包括两个功能：Broker管理，NameServer接受Broker集群的注册信息并且保存下来作为路由信息的基本数据。
+- NameServer：NameServer是一个非常简单的Topic路由注册中心，其角色类似Dubbo中的zookeeper，支持Broker的动态注册与发现。主要包括两个功能：Broker管理，NameServer接受Broker集群的注册信息并且保存下来作为路由信息的基本数据，包括哪些Broker上有哪些队列。
   然后提供心跳检测机制，检查Broker是否还存活；路由信息管理，每个NameServer将保存关于Broker集群的整个路由信息和用于客户端查询的队列信息。
   然后Producer和Conumser通过NameServer就可以知道整个Broker集群的路由信息，从而进行消息的投递和消费。NameServer通常也是集群的方式部署，各实例间相互不进行信息通讯。
   Broker是向每一台NameServer注册自己的路由信息，所以每一个NameServer实例上面都保存一份完整的路由信息。当某个NameServer因某种原因下线了，Broker仍然可以向其它NameServer同步其路由信息，Producer,Consumer仍然可以动态感知Broker的路由的信息。
@@ -399,7 +403,7 @@ RocketMQ事务消息的实现原理是类似基于二阶段提交与事务状态
 
 - 6.消费确认
 
-    + RocketMQ仅支持手动确认，也就是消费完一条消息ack+1，会定期向broker同步消费进度，或者在下一次pull时附带上offset。
+    + RocketMQ定期向broker同步消费进度(每5s)，或者在下一次pull时附带上offset。Broker 收到消费进度先缓存到内存,每5秒持久化磁盘。
     + Kafka支持定时确认、拉取到消息自动确认、手动确认，offset存在zookeeper上。
 
 - 7.消息回溯
