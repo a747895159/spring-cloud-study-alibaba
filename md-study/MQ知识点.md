@@ -514,6 +514,25 @@ RocketMQ默认最大消息大小通常是 4 MB。调整最大消息大小注意�
 - Broker端:  修改刷盘策略为同步刷盘。默认情况下是异步刷盘的,集群部署
 - Consumer端: 完全消费正常后在进行手动 ack 确认.
 
+# 18.消费特殊的Topic
+
+- 1.延迟消息（18次：1s、5s、10s、30s、1m ... 2h ）(**特殊的Topic**)
+    - 定时消息会暂存在名为**SCHEDULE_TOPIC_XXXX**的topic中，并根据delayTimeLevel存入特定的queue,即一个queue只存相同延迟的消息.broker会调度地消费SCHEDULE_TOPIC_XXXX，将消息写入真实的topic。
+
+- 事务消息(**特殊的Topic**)
+    - broker服务端收到Prepare状态的消息，先备份原消息的主题与队列，然后变更Topic为**RMQ_SYS_TRANS_OP_HALF_TOPIC**，队列为0。
+    - 待事务完成后，再将消息移动到将消息写入真实的topic中。
+
+- 重试队列（16次：10s、30s、1m ... 2h ）(**特殊的Topic**)
+    - 对于顺序消息，当消费者消费消息失败后，消息队列 RocketMQ 会自动不断进行消息重试（每次间隔时间为 1 秒），这时应用会出现消息消费被阻塞的情况。
+    - 对于顺序消息，消费失败后，客户端主动将msg和重试次数信息上报给Broker，Broker收到消息后，会将消息移动到重试队列中。
+    - 消费重试的时间间隔与延时消费的延时等级十分相似,Broker对于重试消息的处理是通过延时消息实现的,先将重试队列中，延迟时间到后，会将消息投递真实的topic中。
+    - 重试队列是针对消费组的，而不是针对每个Topic设置，每个消费组都会创建特殊的Topic，**%RETRY%+consumerGroup**.
+
+
+- 死信队列(**特殊的Topic**)
+    - **就是一个特殊的Topic**，名称为%DLQ%consumerGroup@consumerGroup，每个**消费组**都有的，如果重试消息达到最大后进入死信队列。未产生死信消息时，不会产生。
+
 
 
 # 60.kafka最大消息大小
