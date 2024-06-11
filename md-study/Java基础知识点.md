@@ -162,6 +162,20 @@ private static final ThreadLocal<Foo> LOCAL_FOO = new ThreadLocal<Foo>();
 - TransmittableThreadLocal ：是阿里巴巴开源的一个框架，跨线程传递：能够在多线程传递中保持变量的传递性，确保在父线程和子线程之间正确传递ThreadLocal变量。
 
 
+# 8.ArrayList 与LinkedList 区别
+- 数据结构：
+  - ArrayList基于动态数组实现，支持随机访问，通过索引访问元素的时间复杂度为O(1)。
+  - LinkedList基于双向链表实现，随机访问较慢，插入和删除较快。
+- 内存使用：
+  - ArrayList由于需要连续内存分配，可能会导致更多的内存碎片
+  - LinkedList每个节点除了存储数据外，还需要额外的存储空间来保存前后节点的引用，更费内存。
+- 实现接口：
+  - ArrayList实现RandomAccess接口，支持二分查找
+  - LinkedList还额外实现了Deque接口，因此它可以作为双端队列使用；
+- 局部性接口：
+  - ArrayList由于其连续内存布局，能够更好地利用CPU缓存，特别是在进行遍历操作时。
+  - LinkedList由于内存分布不连续，可能导致CPU缓存命中率较低，影响遍历效率。
+
 # 20. JavaAgent实现原理
 
 java agent是基于**JVMTI (JVM Tool Interface)**机制实现的，其通过监听事件的方式获取Java应用运行状态，调用JVM TI提供的接口对应用进行控制。

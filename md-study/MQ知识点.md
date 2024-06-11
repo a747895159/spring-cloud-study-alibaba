@@ -122,7 +122,7 @@ public void submitConsumeRequest(final List<MessageExt> msgs,final ProcessQueue 
 
 - 消息消费完成后，需要将消费进度存储起来，即前面提到的offset。广播模式下，同消费组的消费者相互独立，消费进度要单独存储；集群模式下，同一条消息只会被同一个消费组消费一次，消费进度会参与到负载均衡中，故消费进度是需要共享的。
     - 消费进度相关类 OffsetStore：① LocalFileOffsetStore 本地存储消费进度的具体实现，给广播模式使用；② RemoteBrokerOffsetStore 给集群模式使用，将消费进度存储在broker。
-    - 入口在org.apache.rocketmq.client.impl.consumer.ConsumeMessageConcurrentlyService#processConsumeResult中的最后一段逻辑:
+    - 入口在org.apache.RocketMQ.client.impl.consumer.ConsumeMessageConcurrentlyService#processConsumeResult中的最后一段逻辑:
 
 ```
 public void processConsumeResult(final ConsumeConcurrentlyStatus status,final ConsumeConcurrentlyContext context,final ConsumeRequest consumeRequest) {
@@ -238,7 +238,7 @@ consumer.shutdown();
 
 ![](https://img2024.cnblogs.com/blog/1694759/202404/1694759-20240429101912780-356187072.png)
 
-# 5.Rocketmq怎么保证队列完全顺序消费？
+# 5.RocketMQ怎么保证队列完全顺序消费？
 
 
 - 全局顺序消息：只有一个队列，性能较差；
@@ -380,7 +380,7 @@ RocketMQ事务消息的实现原理是类似基于二阶段提交与事务状态
 
     + RocketMQ由NameServer、Broker、Consumer、Producer组成，NameServer之间互不通信，Broker会向所有的nameServer注册，通过心跳判断broker是否存活，producer和consumer 通过nameserver就知道broker上有哪些topic。
     + Kafka的元数据信息都是保存在Zookeeper，新版本部分已经存放到了Kafka内部了，由Broker、Zookeeper、Producer、Consumer组成。
-    + 两者都支持事务消息（ kafka从0.11.0.0 版本）、顺序消息。
+    + 两者都支持事务消息（ Kafka从0.11.0.0 版本）、顺序消息。
 
 - 2.维度区别
 
@@ -390,7 +390,7 @@ RocketMQ事务消息的实现原理是类似基于二阶段提交与事务状态
 
 - 3.刷盘机制
 
-    + RocketMQ支持同步刷盘，也就是每次消息都等刷入磁盘后再返回，保证消息不丢失，但对吞吐量稍有影响。一般在主从结构下，选择异步双写策略是比较可靠的选择。kafka也支持同步刷盘。
+    + RocketMQ支持同步刷盘，也就是每次消息都等刷入磁盘后再返回，保证消息不丢失，但对吞吐量稍有影响。一般在主从结构下，选择异步双写策略是比较可靠的选择。Kafka也支持同步刷盘。
 
 - 4.消息查询
 
@@ -413,12 +413,14 @@ RocketMQ事务消息的实现原理是类似基于二阶段提交与事务状态
 
 - 8.数据写入：
 
-    - kafka每个partition独占一个目录，每个partition均有各自的数据文件.log；而rocketmq是每个topic共享一个数据文件commitlog因为kafka的topic一般有多个partition，所以kafka的数据写入熟读比rocketmq高出一个量级。但超过一定数量的文件同时写入，会导致原先的顺序写转为随机写，性能急剧下降，所以kafka的分区数量是有限制的。
+    - Kafka每个partition独占一个目录，每个partition均有各自的数据文件.log；引入了日志分段(每段1GB),每个日志文件对应两个索引文件（偏移量索引文件、时间戳索引文件），提高消息查询效率。
+      - Kafka的数据写入熟读比RocketMQ高出一个量级。但超过一定数量的文件同时写入，会导致原先的顺序写转为随机写，性能急剧下降，所以Kafka的分区数量是有限制的。
+    - RocketMQ是每个topic共享一个数据文件CommitLog日志文件，每个队列都有一个索引文件(偏移量和消息的存储时间戳).
 
 - 9.特有
 
     + RocketMQ支持tag、支持延时消息、消息重试机制、支持按时间和offset回溯
-    + Kafka
+    + Kafka 引入了日志分段(每段1GB),每个日志文件对应两个索引文件（偏移量索引文件、时间戳索引文件），提高消息查询效率。
 
 - 10.两者都高性能
 
@@ -535,7 +537,7 @@ RocketMQ默认最大消息大小通常是 4 MB。调整最大消息大小注意�
 
 
 
-# 60.kafka最大消息大小
+# 60.Kafka最大消息大小
 
 Kafka服务器默认最大消息大小通常是 1 MB。调整最大消息大小注意：
 
@@ -546,7 +548,10 @@ Kafka服务器默认最大消息大小通常是 1 MB。调整最大消息大小�
 
 # 61、Kafka 为什么不支持读写分离?。
 
-Leader/Follower 模型并没有规定 Follower 副本不可以对外提供读服务。很多框架都是允许这么做的，只是 Kafka 最初为了避免不一致性的问题，而采用了让 Leader 统一提供服 务的方式。Kafka 2.4 之后，Kafka 提供了有限度的读写分离，也就是说，Follower 副本能够对外提供读服务。
+Leader/Follower 模型并没有规定 Follower 副本不可以对外提供读服务。很多框架都是允许这么做的，只是 Kafka 最初为了避免不一致性的问题，而采用了让 Leader 统一提供服 务的方式。Kafka 2.4 之后，Kafka 提供了有限度的读写分离，也就是说Follower副本能够对外提供读服务。
+
+> HW和LEO。HW俗称高水位，取一个partition对应的ISR中最小的LEO作为HW，consumer最多只能消费到HW所在的位置。
+> 对于leader新写入的消息，consumer不能立刻消费，leader会等待该消息被所有ISR中的replicas同步后更新HW，
 
 之前的版本不支持读写分离的理由。
 
@@ -555,18 +560,15 @@ Leader/Follower 模型并没有规定 Follower 副本不可以对外提供读服
 
 
 
-# 62.kafka 的 ack 机制
+# 62.Kafka 的 ack 机制
 
 request.required.acks 有三个值 0、1、 -1(ALL)
 
--  0:  生产者不会等待 broker 的 ack，这个延迟最低但是存储的保证最弱当 server 挂掉的时候
-   就会丢数据
--  1: 服务端会等待 ack 值 leader 副本确认接收到消息后发送 ack 但是如果 leader 挂掉后他
-   不确保是否复制完成新 leader 也会导致数据丢失
--  -1(ALL) : 同样在 1 的基础上 服务端会等所有的 follower 的副本受到数据后才会受到 leader 发出
-   的 ack，这样数据不会丢失
+- 0:  生产者不会等待broker的ack，这个延迟最低但是存储的保证最弱当 server 挂掉的时候就会丢数据
+- 1:  服务端会等待ack值， 半数以上副本确认接收到消息后发送ack。但是如果leader挂掉后，不确保是否复制完成，新leader也会导致数据丢失。
+- -1(ALL) : 同样在 1 的基础上 服务端会等所有的follower的副本受到数据后才会受到leader发出的ack，这样数据不会丢失
 
-# 63.kafka如何实现每秒上百万的超高并发写入
+# 63.Kafka如何实现每秒上百万的超高并发写入
 
 - **页缓存技术**： 每次接收到数据直接写入OSCache中
 - **磁盘顺序写**：每次都是追加文件末尾顺序写的方式.
@@ -574,5 +576,10 @@ request.required.acks 有三个值 0、1、 -1(ALL)
         - acks=all配置表示生产者只有在所有副本确认收到消息后才认为消息发送成功，这增加了消息的持久性。
         - ISR（In-Sync Replica）列表中的大多数副本时，才被认为是已提交（committed）。
     - log.flush.interval.messages和log.flush.interval.ms控制了数据多久或者积累多少条消息后刷盘，减少数据在内存中停留的时间，降低数据丢失风险。
-- **零Copy**： 直接让操作系统的 Cache 中的数据发送到网卡后传输给下游的消费者。跳过数据Copy应用内存。
-- **内存映射文件**：将文件映射到内存地址空间，减少了数据复制的开销。
+- **零Copy**： 堆外内存，直接让操作系统的 Cache 中的数据发送到网卡后传输给下游的消费者。跳过数据Copy应用内存。
+- **内存映射文件**：将文件映射(FileChannel)到内存地址空间，减少了数据复制的开销。
+
+# 64.Kafka控制器的作用
+Kafka 集群中会有一个或多个 broker，其中有一个 broker 会被选举为控制器（Kafka Controller），它负责管理整个集群中所有分区和副本的状态。
+当某个分区的 leader 副本出现故障时，由控制器负责为该分区选举新的 leader 副本。
+当检测到某个分区的 ISR 集合发生变化时，由控制器负责通知所有broker更新其元数据信息。
