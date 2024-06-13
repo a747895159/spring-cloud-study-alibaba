@@ -248,7 +248,8 @@ new Thread(() -> {
 
 **八、调度方式**
 
-`synchronized`使用的是`object`对象本身的`wait`、`notify`、`notifyAll`方法，而`lock`使用的是`Condition`进行线程之间的调度。
+`synchronized`使用的是`object`对象本身的`wait`、`notify`、`notifyAll`方法.
+`lock`使用的是`Condition`进行线程之间的调度,await()、signal()、 condition.signalAll().同时底层实现的是LockSupport.park()/LockSupport.unpark()的机制.
 
 **九、是否能中断**
 
