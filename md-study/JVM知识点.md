@@ -409,21 +409,18 @@ Java 的 AtomicStampedReference 类就实现了这种机制，它会同时检查
 
 # 20.JVM调优
 
-### JVM调优命令jps、jstack、jstat、jmap
-
-> 输入jps,获得进程号。
-> top -Hp pid 获取本进程中所有线程的 CPU 耗时性能
-> jstack pid 命令查看当前 java 进程的线程状态，或者 jstack -l > /tmp/output.txt 把线程堆栈信息打到一个 txt 文件。
-> jstat 查看Java程序运行时堆信息(新生代、老年代、GC等信息).  jstat -gc 17351 250 4 进程ID 17351 ，采样间隔250ms，采样数4
-> jmap 查看堆内存状况。
->
-> > jmap -heap pid 显示Java堆详细信息：打印堆的摘要信息，包括使用的GC算法、堆配置信息和各内存区域内存使用信息.
-> > jmap -histo:live pid 显示堆中对象的统计信息：其中包括每个Java类、对象数量、内存大小(单位：字节)、完全限定的类名
-> > jmap -dump:format=b,file=heapdump.hprof pid  堆转储快照dump文件.-XX:+HeapDumpOnOutOfMemoryError 选项，则抛出 OutOfMemoryError 时，会自动执行堆转储。
+### JVM调优命令 jps、jstack、jstat、jmap
+- 输入jps,获得进程号。
+- top -Hp pid 获取本进程中所有线程的 CPU 耗时性能
+- jstack pid 命令查看当前 java 进程的线程状态，或者 jstack -l > /tmp/output.txt 把线程堆栈信息打到一个 txt 文件。
+- jstat 查看Java程序运行时堆信息(新生代、老年代、GC等信息).  jstat -gc 17351 250 4 进程ID 17351 ，采样间隔250ms，采样数4
+- jmap 查看堆内存状况。
+>jmap -heap pid 显示Java堆详细信息：打印堆的摘要信息，包括使用的GC算法、堆配置信息和各内存区域内存使用信息.
+> jmap -histo:live pid 显示堆中对象的统计信息：其中包括每个Java类、对象数量、内存大小(单位：字节)、完全限定的类名
+> jmap -dump:format=b,file=heapdump.hprof pid  堆转储快照dump文件.-XX:+HeapDumpOnOutOfMemoryError 选项，则抛出 OutOfMemoryError 时，会自动执行堆转储。
 
 
 ### JVM调优参数
-
 -Xms2G： 设置初始堆大小为2G。
 -Xmx4G： 设置最大堆大小为4G。
 -Xss1m： 每个线程的堆栈大小为1m。
@@ -440,10 +437,10 @@ Java 的 AtomicStampedReference 类就实现了这种机制，它会同时检查
 
 
 ### JVM 调优工具
-
 - jconsole：用于对 JVM 中的内存、线程和类等进行监控；
 - jvisualvm：JDK自带的全能分析工具，可以分析：内存快照、线程快照、程序死锁、监控内存的变化、gc变化等
 - arthas：阿里开源的Java诊断工具,上述在线全能分析、查看字节码信息、方法追踪。
+
 
 
 
