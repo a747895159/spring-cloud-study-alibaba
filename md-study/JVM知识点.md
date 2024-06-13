@@ -399,17 +399,51 @@ Java 的 AtomicStampedReference 类就实现了这种机制，它会同时检查
     - 通过 ClassLoader 默认的 loadClass 方法，也不会触发初始化动作。
 
 - 双亲委派加载机制：
+  - 类加载器进行分层。优先使用父类加载器进行加载。这种设计能够避免重复加载类、核心类被篡改等情况发生。
+  - **打破双亲委派机制则不仅要继承 ClassLoader 类，还要重写 loadClass 和 findClass 方法**。
+  > 服务提供者接口（SPI）机制：
+  > 以JDBC为例,DriverManager是在 rt.jar中 由启动类加载器加载。 但是他的实现是采用SPI机制 在ClassPath下面。JDK引入了**线程上下文类加载器(TCCL：Thread Context ClassLoader)**,打破双亲委派模式,利用线程上下文类加载器去加载所需要的SPI代码。
+  > TCCL是从JDK1.2开始引入的，可以通过 java.lang.Thread 类中的 getContextClassLoader()和 setContextClassLoader(ClassLoader cl) 方法来获取和设置线程的上下文类加载器。如果没有手动设置上下文类加载器，线程将继承其父线程的上下文类加载器，初始线程的默认上下文类加载器是 Application ClassLoader。
 
   ![](https://img2024.cnblogs.com/blog/1694759/202406/1694759-20240613112533297-288050347.png)
 
+# 20.JVM调优
+
+### JVM调优命令jps、jstack、jstat、jmap
+
+> 输入jps,获得进程号。
+> top -Hp pid 获取本进程中所有线程的 CPU 耗时性能
+> jstack pid 命令查看当前 java 进程的线程状态，或者 jstack -l > /tmp/output.txt 把线程堆栈信息打到一个 txt 文件。
+> jstat 查看Java程序运行时堆信息(新生代、老年代、GC等信息).  jstat -gc 17351 250 4 进程ID 17351 ，采样间隔250ms，采样数4
+> jmap 查看堆内存状况。
+>
+> > jmap -heap pid 显示Java堆详细信息：打印堆的摘要信息，包括使用的GC算法、堆配置信息和各内存区域内存使用信息.
+> > jmap -histo:live pid 显示堆中对象的统计信息：其中包括每个Java类、对象数量、内存大小(单位：字节)、完全限定的类名
+> > jmap -dump:format=b,file=heapdump.hprof pid  堆转储快照dump文件.-XX:+HeapDumpOnOutOfMemoryError 选项，则抛出 OutOfMemoryError 时，会自动执行堆转储。
 
 
-# 20.Java为什么要打破双亲委派模式？
+### JVM调优参数
 
-![](https://img2020.cnblogs.com/blog/1694759/202111/1694759-20211103165215393-1428034378.png)
+-Xms2G： 设置初始堆大小为2G。
+-Xmx4G： 设置最大堆大小为4G。
+-Xss1m： 每个线程的堆栈大小为1m。
+-XX:MetaspaceSize： 初始的元空间大小为512M
+-Xmn2g： 设置年轻代大小为 2g。
+-XX:NewRatio=4: 设置年轻代（包括 Eden 和两个 Survivor 区）与年老代的比值（除去持久代）。
+-XX:SurvivorRatio=4： 设置年轻代中 Eden 区与 Survivor 区的大小比值。设置为 4，则两个Survivor 区与一个 Eden 区的比值为 2:4，一个 Survivor 区占整个年轻代的 1/6.
+-XX:+PrintGC：开启打印 gc 信息；
+-XX:ParallelGCThreads=8 设置进行年轻代垃圾收集时使用的线程数为8
+-XX:ConcGCThreads=8 G1并发标记周期中执行并发工作的线程数为8
+-XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=/tmp/heapdump.hprof 内存溢出错误时产生dump文件并转存位置。
+-XX:InitiatingHeapOccupancyPercent=45 G1老年代占用率达到堆总容量的45%时，开始触发混合垃圾收集MixedGC
+-XX:MaxGCPauseMillis=50 G1单次垃圾收集的最长时间限制为50毫秒
 
-双亲委派模型就是将类加载器进行分层。在触发类加载的时候，当前类加载器会从低层向上委托父类加载器去加载。每层类加载器在加载时会判断该类是否已经被加载过，如果已经加载过，就不再加载了，可以保证同一个类在使用中出现不相等场景。这种设计能够避免重复加载类、核心类被篡改等情况发生。
 
-- 以JDBC为例,DriverManager是在 rt.jar中 由启动类加载器加载。 但是他的实现是采用SPI机制 在ClassPath下面。JDK引入了**线程上下文类加载器(TCCL：Thread Context ClassLoader)**,打破双亲委派模式,利用线程上下文类加载器去加载所需要的SPI代码。
-  TCCL是从JDK1.2开始引入的，可以通过 java.lang.Thread 类中的 getContextClassLoader()和 setContextClassLoader(ClassLoader cl) 方法来获取和设置线程的上下文类加载器。如果没有手动设置上下文类加载器，线程将继承其父线程的上下文类加载器，初始线程的默认上下文类加载器是 Application ClassLoader。
+### JVM 调优工具
+
+- jconsole：用于对 JVM 中的内存、线程和类等进行监控；
+- jvisualvm：JDK自带的全能分析工具，可以分析：内存快照、线程快照、程序死锁、监控内存的变化、gc变化等
+- arthas：阿里开源的Java诊断工具,上述在线全能分析、查看字节码信息、方法追踪。
+
+
 
