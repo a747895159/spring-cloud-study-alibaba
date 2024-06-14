@@ -330,12 +330,17 @@ new String(“Hello”) 是一个字符串对象，它存放在 **堆** 中，�
    System.out.println(s1 == s3);// false s1是指向字符串常量区 s3指向的是堆区
    System.out.println(s1.equals(s3));//true 指向的对象中的字符串内容相同
 ```
+
 # 14.synchronized 和 volatile 的区别是什么？
 
 - volatile 是变量修饰符；synchronized 可以修饰类、方法、变量。
+
 - volatile 标记的变量不会被编译器优化；synchronized 标记的变量可以被编译器优化。
+
 - volatile 仅能实现变量的修改可见性，不能保证原子性；而 synchronized 则可以保证变量的修改可见性和原子性。
+
 - volatile基于happens-before规则的保证，确保多线程环境下变量的可见性；禁止指令重排序，是线程同步的轻量级实现，不会造成线程的阻塞。synchronized 获取作用对象的锁，执行代码，阻塞其他线程。
+
   > happens-before规则：控制内存操作的执行顺序和数据的可见性。是一个抽象概念，**内存屏障**这是其实现之一。
   > volatile 的一个重要作用就是和 CAS 结合，保证了原子性
 
@@ -418,6 +423,7 @@ Java 的 AtomicStampedReference 类就实现了这种机制，它会同时检查
 ![](https://img2024.cnblogs.com/blog/1694759/202406/1694759-20240613111500449-1026619880.png)
 
 - 类加载机制:
+
   - 加载：将一个Class加入内存，可以是动态代理生成的类，也可是jar中的
   - 验证：验证Class字节格式，确保 Class 文件的字节流中包含的信息是否符合当前虚拟机的要求。
   - 准备：为类变量分配内存并设置类变量的初始值。静态变量复制在初始化阶段，常量直接复制，全局变量直接赋值。
@@ -429,8 +435,10 @@ Java 的 AtomicStampedReference 类就实现了这种机制，它会同时检查
     - 通过 ClassLoader 默认的 loadClass 方法，也不会触发初始化动作。
 
 - 双亲委派加载机制：
+
   - 类加载器进行分层。优先使用父类加载器进行加载。这种设计能够避免重复加载类、核心类被篡改等情况发生。
   - **打破双亲委派机制则不仅要继承 ClassLoader 类，还要重写 loadClass 和 findClass 方法**。
+
   > 服务提供者接口（SPI）机制：
   > 以JDBC为例,DriverManager是在 rt.jar中 由启动类加载器加载。 但是他的实现是采用SPI机制 在ClassPath下面。JDK引入了**线程上下文类加载器(TCCL：Thread Context ClassLoader)**,打破双亲委派模式,利用线程上下文类加载器去加载所需要的SPI代码。
   > TCCL是从JDK1.2开始引入的，可以通过 java.lang.Thread 类中的 getContextClassLoader()和 setContextClassLoader(ClassLoader cl) 方法来获取和设置线程的上下文类加载器。如果没有手动设置上下文类加载器，线程将继承其父线程的上下文类加载器，初始线程的默认上下文类加载器是 Application ClassLoader。
@@ -440,17 +448,20 @@ Java 的 AtomicStampedReference 类就实现了这种机制，它会同时检查
 # 36.JVM调优
 
 ### JVM调优命令 jps、jstack、jstat、jmap
+
 - 输入jps,获得进程号。
 - top -Hp pid 获取本进程中所有线程的 CPU 耗时性能
 - jstack pid 命令查看当前 java 进程的线程状态，或者 jstack -l > /tmp/output.txt 把线程堆栈信息打到一个 txt 文件。
 - jstat 查看Java程序运行时堆信息(新生代、老年代、GC等信息).  jstat -gc 17351 250 4 进程ID 17351 ，采样间隔250ms，采样数4
 - jmap 查看堆内存状况。
+
 >jmap -heap pid 显示Java堆详细信息：打印堆的摘要信息，包括使用的GC算法、堆配置信息和各内存区域内存使用信息.
-> jmap -histo:live pid 显示堆中对象的统计信息：其中包括每个Java类、对象数量、内存大小(单位：字节)、完全限定的类名
-> jmap -dump:format=b,file=heapdump.hprof pid  堆转储快照dump文件.-XX:+HeapDumpOnOutOfMemoryError 选项，则抛出 OutOfMemoryError 时，会自动执行堆转储。
+>jmap -histo:live pid 显示堆中对象的统计信息：其中包括每个Java类、对象数量、内存大小(单位：字节)、完全限定的类名
+>jmap -dump:format=b,file=heapdump.hprof pid  堆转储快照dump文件.-XX:+HeapDumpOnOutOfMemoryError 选项，则抛出 OutOfMemoryError 时，会自动执行堆转储。
 
 
 ### JVM调优参数
+
 -Xms2G： 设置初始堆大小为2G。
 -Xmx4G： 设置最大堆大小为4G。
 -Xss1m： 每个线程的堆栈大小为1m。
@@ -467,10 +478,7 @@ Java 的 AtomicStampedReference 类就实现了这种机制，它会同时检查
 
 
 ### JVM 调优工具
+
 - jconsole：用于对 JVM 中的内存、线程和类等进行监控；
-- jvisualvm：JDK自带的全能分析工具，可以分析：内存快照、线程快照、程序死锁、监控内存的变化、gc变化等
+- jvisualvm：JDK自带的全能分析工具，可以分析：内存快照、线程快照、程序死锁、监控内存的变化、gc变化等。启动配置JMX参数，可以链接监控远程主机。
 - arthas：阿里开源的Java诊断工具,上述在线全能分析、查看字节码信息、方法追踪。
-
-
-
-

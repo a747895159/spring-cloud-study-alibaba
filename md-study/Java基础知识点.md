@@ -4,9 +4,19 @@
 
 https://learning.snssdk.com/feoffline/toutiao_wallet_bundles/toutiao_learning_wap/online/article.html?item_id=6791308968099578376&app_name=news_article
 
-# 0.1 List相关知识
+# 0.1 常用的集合
 ArrayList 默认容量是10,扩容为原来的1.5倍
 CopyOnWriteArrayList 是线程安全的List。设计思想：读写分离，读和写分开，每次写通过复制原数组，来解决并发冲突，最终一致性。
+
+- HashSet: 基于哈希表实现。LinkedHashSet: 结合了哈希表和链表的优点，保证了元素插入的顺序。
+- ConcurrentSkipListMap功能上与TreeMap类似，两者都提供了有序的键值对存储功能。
+    - ConcurrentSkipListMap 线程安全的，基于跳表方式实现的。插入、查找为 O(logn)。键值对的要求是均不能为 null。
+    - TreeMap 线程不安全，基于红黑树实现的。键不能为null,值可以为null。
+- ConcurrentSkipListSet功能上与TreeSet类似，都是存放有序地键。底层都是使用上面对应的Map。
+- CopyOnWriteArrayList、Collections.synchronizedList(List<T> list) 实现线程安全的List。内部通过 synchronized 块对集合的修改方法进行同步。
+- CopyOnWriteArraySet、Collections.synchronizedSet(Set<T> set) 实现线程安全的Set。内部通过 synchronized 块对集合的修改方法进行同步。
+  > CopyOnWriteArrayList、CopyOnWriteArraySet写时复制机制实现线程安全的。
+
 
 # 1. 偏向锁、轻量级锁、重量级锁竞争
 
@@ -70,13 +80,12 @@ CopyOnWriteArrayList 是线程安全的List。设计思想：读写分离，读�
 
 # 5.线程池任务，如何设置优先级？
 
-换掉 线程池里边的工作队列，使用 优先级的无界阻塞队列 ，去管理 异步任务。
-
 * **ArrayBlockingQueue** ：使用数组实现的有界阻塞队列，特性先进先出
 * **LinkedBlockingQueue** ：使用链表实现的阻塞队列，特性先进先出，可以设置其容量，默认为Interger.MAX_VALUE，特性先进先出
 * **PriorityBlockingQueue** ：二叉树最小堆的实现，实现的具有优先级的无界阻塞队列。提交的任务需具备排序能力。
 * **DelayQueue** ：无界阻塞延迟队列，队列中每个元素均有过期时间，当从队列获取元素时，只有过期元素才会出队列。队列头元素是最块要过期的元素。
 * **SynchronousQueue** ：一个不存储元素的阻塞队列，每个插入操作，必须等到另一个线程调用移除操作，否则插入操作一直处于阻塞状态
+* **ConcurrentLinkedQueue** ：基于链表的无界并发队列，性能高。
 
 # 5.1 PriorityBlockingQueue 队列是无界的，怎么实现数量限制？
 - PriorityBlockingQueue是无界的，它的offer方法永远返回true。会带来OOM风险、最大线程数失效、拒绝策略失效。
