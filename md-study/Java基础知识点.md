@@ -6,7 +6,7 @@ https://learning.snssdk.com/feoffline/toutiao_wallet_bundles/toutiao_learning_wa
 
 # 0.1 List相关知识
 ArrayList 默认容量是10,扩容为原来的1.5倍
-
+CopyOnWriteArrayList 是线程安全的List。设计思想：读写分离，读和写分开，每次写通过复制原数组，来解决并发冲突，最终一致性。
 
 # 1. 偏向锁、轻量级锁、重量级锁竞争
 
