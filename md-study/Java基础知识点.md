@@ -4,8 +4,7 @@
 
 https://learning.snssdk.com/feoffline/toutiao_wallet_bundles/toutiao_learning_wap/online/article.html?item_id=6791308968099578376&app_name=news_article
 
-# 0.1 常用的集合
-ArrayList 默认容量是10,扩容为原来的1.5倍
+# 1 常用的集合
 CopyOnWriteArrayList 是线程安全的List。设计思想：读写分离，读和写分开，每次写通过复制原数组，来解决并发冲突，最终一致性。
 
 - HashSet: 基于哈希表实现。LinkedHashSet: 结合了哈希表和链表的优点，保证了元素插入的顺序。
@@ -13,17 +12,29 @@ CopyOnWriteArrayList 是线程安全的List。设计思想：读写分离，读�
     - ConcurrentSkipListMap 线程安全的，基于跳表方式实现的。插入、查找为 O(logn)。键值对的要求是均不能为 null。
     - TreeMap 线程不安全，基于红黑树实现的。键不能为null,值可以为null。
 - ConcurrentSkipListSet功能上与TreeSet类似，都是存放有序地键。底层都是使用上面对应的Map。
-- CopyOnWriteArrayList、Collections.synchronizedList(List<T> list) 实现线程安全的List。内部通过 synchronized 块对集合的修改方法进行同步。
-- CopyOnWriteArraySet、Collections.synchronizedSet(Set<T> set) 实现线程安全的Set。内部通过 synchronized 块对集合的修改方法进行同步。
-  > CopyOnWriteArrayList、CopyOnWriteArraySet写时复制机制实现线程安全的。
+- Collections.synchronizedSet(Set<T> set)、Collections.synchronizedList(List<T> list) 实现线程安全的, 内部通过 synchronized 块对集合的修改方法进行同步。
+- CopyOnWriteArraySet、CopyOnWriteArrayList 写时复制机制实现线程安全的。
 
+# 2.ArrayList 与LinkedList 区别
+- 数据结构：
+    - ArrayList基于动态数组实现，支持随机访问，通过索引访问元素的时间复杂度为O(1)。默认容量是10,扩容为原来的1.5倍。
+    - LinkedList基于双向链表实现，随机访问较慢，插入和删除较快。
+- 内存使用：
+    - ArrayList由于需要连续内存分配，可能会导致更多的内存碎片
+    - LinkedList每个节点除了存储数据外，还需要额外的存储空间来保存前后节点的引用，更费内存。
+- 实现接口：
+    - ArrayList实现RandomAccess接口(一个Java标记接口，支持快速随机访问)，支持二分查找
+    - LinkedList还额外实现了Deque接口，因此它可以作为双端队列使用；
+- 局部性原理：
+    - ArrayList由于其连续内存布局，能够更好地利用CPU缓存，特别是在进行遍历操作时。
+    - LinkedList由于内存分布不连续，可能导致CPU缓存命中率较低，影响遍历效率。
 
-# 1. 偏向锁、轻量级锁、重量级锁竞争
+# 3. 偏向锁、轻量级锁、重量级锁竞争
 
  ![](https://img2020.cnblogs.com/blog/1694759/202110/1694759-20211013180731349-1190196584.png)
  ![](https://img2020.cnblogs.com/blog/1694759/202110/1694759-20211013181026409-2075811936.png)   
  
-# 2.高性能队列Disruptor
+# 4.高性能队列Disruptor
  
 简书介绍：https://www.cnblogs.com/a747895159/articles/18111284
 
@@ -62,23 +73,23 @@ CopyOnWriteArrayList 是线程安全的List。设计思想：读写分离，读�
 	- 采用**RingBuffer**循环缓冲区，避免了传统队列中的锁竞争问题，避免频繁加锁、解锁的性能消耗。
 	- 支持批量消费，消费者可以无锁方式消费多个消息。
 
-# 3.java8新增的stream api迭代次数？
+# 5.java8新增的stream api迭代次数？
 - 对于无状态的中间操作只会迭代一次,对于有状态的会迭代多次。
 	![](https://img2020.cnblogs.com/blog/1694759/202111/1694759-20211103165032515-264003863.png)
 
-# 4.线程的生命周期
+# 6.线程的生命周期
 
 ![](https://img2024.cnblogs.com/blog/1694759/202406/1694759-20240613191440018-230589820.png)
 
 ![](https://img2024.cnblogs.com/blog/1694759/202406/1694759-20240613191309399-1282809472.png)
 
-- sleep()线程不会释放对象锁，导致线程进入TIMED-WATING状态。
+- sleep()线程不会释放对象锁，导致线程进入TIMED-WATING状态。yield()也不会释放锁
 - wait()方法的时候，线程会放弃对象锁。导致当前线程进入WATING状态。
 - LockSupport 中的 park() 和 unpark()通过许可机制工作，不会直接持有或影响任何对象锁的状态。
 - 由于suspend()和 resume()方法容易引发死锁（被挂起的线程可能持有锁，导致其他线程也无法继续执行），且不安全，已废弃。
 
 
-# 5.线程池任务，如何设置优先级？
+# 7.线程池任务，如何设置优先级？
 
 * **ArrayBlockingQueue** ：使用数组实现的有界阻塞队列，特性先进先出
 * **LinkedBlockingQueue** ：使用链表实现的阻塞队列，特性先进先出，可以设置其容量，默认为Interger.MAX_VALUE，特性先进先出
@@ -87,14 +98,14 @@ CopyOnWriteArrayList 是线程安全的List。设计思想：读写分离，读�
 * **SynchronousQueue** ：一个不存储元素的阻塞队列，每个插入操作，必须等到另一个线程调用移除操作，否则插入操作一直处于阻塞状态
 * **ConcurrentLinkedQueue** ：基于链表的无界并发队列，性能高。
 
-# 5.1 PriorityBlockingQueue 队列是无界的，怎么实现数量限制？
+# 8 PriorityBlockingQueue 队列是无界的，怎么实现数量限制？
 - PriorityBlockingQueue是无界的，它的offer方法永远返回true。会带来OOM风险、最大线程数失效、拒绝策略失效。
 - 可以继承PriorityBlockingQueue ， 重写一下这个类的offer方法，如果元素超过指定数量直接返回false，否则调用原来逻辑。
     - PriorityQueue在默认情况下是一个最小堆，如果使用最大堆调用构造函数就需要传入 Comparator 改变比较排序的规则。
     - PriorityQueue实现了Queue接口，但它并不是一个队列，也不是按照“先入先出”的顺序删除元素的。PriorityQueue是一个堆，每次调用函数remove或poll都将删除位于堆顶的元素。
 
 
-# 6.布隆过滤器与BitMap(  位图)
+# 9.布隆过滤器与BitMap(  位图)
 
 - 布隆过滤器(Bloom Filter):  通过使用多个哈希函数将元素映射到位数组的不同位置上，并将这些位置的比特位设为1。它适用于可以接受一定误报率的场景。相当于是一个不太精确的set集合,判断元素是否存在，存在误判率。**存在 不一定存在，不存在 一定不存在**. 
 ```
@@ -113,7 +124,7 @@ CopyOnWriteArrayList 是线程安全的List。设计思想：读写分离，读�
 ![参考网址](https://www.cnblogs.com/a747895159/articles/18030189)
 
 
-# 7.ThreadLocalMap内存泄露的原因？要如何避免？
+# 10.ThreadLocalMap内存泄露的原因？要如何避免？
 
 - 每个Thread拥有一个ThreadLocalMap，每个ThreadLocalMap中以ThreadLocal为key，值为value。每个ThreadLocalMap存储的“Key-Value对”数量比较少。
 - ThreadLocalMap底层使用开放地址法(线性探针)。当Thread实例销毁后，ThreadLocalMap也会随之销毁。
@@ -153,7 +164,7 @@ public void funcA() {
 
 ![](https://img2024.cnblogs.com/blog/1694759/202405/1694759-20240531134234369-1551470544.png)
 
-# 7.1 ThreadLocal的性能问题，及内存泄露要如何避免？
+# 11. ThreadLocal的性能问题，及内存泄露要如何避免？
 
 - 在高并发的环境下，要尽量复用、重用ThreadLocal变量，避免在高频率的操作中频繁地创建和销毁它们。编程规范：推荐使用 `static final` 修饰ThreadLocal对象。
 
@@ -170,22 +181,8 @@ private static final ThreadLocal<Foo> LOCAL_FOO = new ThreadLocal<Foo>();
 ### ThreadLocal继承性相关其他类
 
 - InheritableThreadLocal : 是JDK提供的ThreadLocal的子类。允许父线程中的InheritableThreadLocal变量的值被子线程继承。
-- TransmittableThreadLocal ：是阿里巴巴开源的一个框架，跨线程传递：能够在多线程传递中保持变量的传递性，确保在父线程和子线程之间正确传递ThreadLocal变量。
+- TransmittableThreadLocal ：是阿里巴巴开源的一个框架，跨线程传递，能够在多线程传递中保持变量的传递性。
 
-
-# 8.ArrayList 与LinkedList 区别
-- 数据结构：
-  - ArrayList基于动态数组实现，支持随机访问，通过索引访问元素的时间复杂度为O(1)。
-  - LinkedList基于双向链表实现，随机访问较慢，插入和删除较快。
-- 内存使用：
-  - ArrayList由于需要连续内存分配，可能会导致更多的内存碎片
-  - LinkedList每个节点除了存储数据外，还需要额外的存储空间来保存前后节点的引用，更费内存。
-- 实现接口：
-  - ArrayList实现RandomAccess接口，支持二分查找
-  - LinkedList还额外实现了Deque接口，因此它可以作为双端队列使用；
-- 局部性接口：
-  - ArrayList由于其连续内存布局，能够更好地利用CPU缓存，特别是在进行遍历操作时。
-  - LinkedList由于内存分布不连续，可能导致CPU缓存命中率较低，影响遍历效率。
 
 # 20. JavaAgent实现原理
 
