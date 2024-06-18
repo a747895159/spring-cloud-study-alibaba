@@ -17,10 +17,34 @@ RocketMQ 顺序消息实现机制
 https://www.jianshu.com/p/0ff1b6a3da36
 
 
+[TOC]
+
+# 1. RocketMQ 业务名词含义
+
+- 定时(延迟消息): broker有配置项messageDelayLevel，默认值为“1s 5s 10s 30s 1m 2m 3m 4m 5m 6m 7m 8m 9m 10m 20m 30m 1h 2h”，18个level。可以配置自定义messageDelayLevel。定时消息会暂存在名为SCHEDULE_TOPIC_XXXX的topic中，并根据delayTimeLevel存入特定的queue,即一个queue只存相同延迟的消息.
+  broker会调度地消费SCHEDULE_TOPIC_XXXX，将消息写入真实的topic。
+- 消息重试: 生产者在发送消息时，同步消息失败会重投，异步无重试有回调函数，oneway没有任何保证。消息重投保证消息尽可能发送成功、不丢失，但可能会造成消息重复，消息重复在RocketMQ中是无法避免的问题。消息重复在一般情况下不会发生，当出现消息量大、网络抖动，消息重复就会是大概率事件。另外，生产者主动重发、consumer负载变化也会导致重复消息。
+
+- NameServer：NameServer是一个非常简单的Topic路由注册中心，其角色类似Dubbo中的zookeeper，支持Broker的动态注册与发现。主要包括两个功能：Broker管理，NameServer接受Broker集群的注册信息并且保存下来作为路由信息的基本数据，包括哪些Broker上有哪些队列。
+  然后提供心跳检测机制，检查Broker是否还存活；路由信息管理，每个NameServer将保存关于Broker集群的整个路由信息和用于客户端查询的队列信息。
+  然后Producer和Conumser通过NameServer就可以知道整个Broker集群的路由信息，从而进行消息的投递和消费。NameServer通常也是集群的方式部署，各实例间相互不进行信息通讯。
+  Broker是向每一台NameServer注册自己的路由信息，所以每一个NameServer实例上面都保存一份完整的路由信息。当某个NameServer因某种原因下线了，Broker仍然可以向其它NameServer同步其路由信息，Producer,Consumer仍然可以动态感知Broker的路由的信息。
 
 
-# 2.一个消费者中多个线程又是如何并发的消费的,多个消费队列并发消费。
 
+- NameServer是一个几乎无状态节点，可集群部署，节点之间无任何信息同步。
+  Broker部署相对复杂，Broker分为Master与Slave，一个Master可以对应多个Slave，但是一个Slave只能对应一个Master，Master与Slave 的对应关系通过指定相同的BrokerName，不同的BrokerId 来定义，BrokerId为0表示Master，非0表示Slave。Master也可以部署多个。每个Broker与NameServer集群中的所有节点建立长连接，定时注册Topic信息到所有NameServer。 注意：当前RocketMQ版本在部署架构上支持一Master多Slave，但只有BrokerId=1的从服务器才会参与消息的读负载。
+  Producer与NameServer集群中的其中一个节点（随机选择）建立长连接，定期从NameServer获取Topic路由信息，并向提供Topic 服务的Master建立长连接，且定时向Master发送心跳。Producer完全无状态，可集群部署。
+  Consumer与NameServer集群中的其中一个节点（随机选择）建立长连接，定期从NameServer获取Topic路由信息，并向提供Topic服务的Master、Slave建立长连接，且定时向Master、Slave发送心跳。Consumer既可以从Master订阅消息，也可以从Slave订阅消息，消费者在向Master拉取消息时，Master服务器会根据拉取偏移量与最大偏移量的距离（判断是否读老消息，产生读I/O），以及从服务器是否可读等因素建议下一次是从Master还是Slave拉取。生产者每 30 秒从 Namesrv 获取 Topic 跟 Broker 的映射关系，更新到本地内存中。然后再跟 Topic 涉及的所有 Broker 建立长连接，每隔 30 秒发一次心跳。
+- 启动NameServer，NameServer起来后监听端口，等待Broker、Producer、Consumer连上来，相当于一个路由控制中心。
+  Broker启动，跟所有的NameServer保持长连接，定时发送心跳包。心跳包中包含当前Broker信息(IP+端口等)以及存储所有Topic信息。注册成功后，NameServer集群中就有Topic跟Broker的映射关系。
+  收发消息前，先创建Topic，创建Topic时需要指定该Topic要存储在哪些Broker上，也可以在发送消息时自动创建Topic。
+  Producer发送消息，启动时先跟NameServer集群中的其中一台建立长连接，并从NameServer中获取当前发送的Topic存在哪些Broker上，轮询从队列列表中选择一个队列，然后与队列所在的Broker建立长连接从而向Broker发消息。
+  Consumer跟Producer类似，跟其中一台NameServer建立长连接，获取当前订阅Topic存在哪些Broker上，然后直接跟Broker建立连接通道，开始消费消息。  每隔 30 秒发一次心跳。
+
+
+
+# 2. 多线程、多个消费队列如何并发消费。
 
 - 消费规则: 1个消费者可以消费多个消息队列，但一个消息队列同一时间只能被一个消费者消费.
 - **Broker发现客户端列表有变化，通知所有Consumer执行Rebalance **
@@ -118,7 +142,7 @@ public void submitConsumeRequest(final List<MessageExt> msgs,final ProcessQueue 
 ```
 
 
-# 3.消息消费进度如何保存，包括MQ是如何知道消息是否正常被消费了。
+# 3. 消息消费进度如何保存？
 
 - 消息消费完成后，需要将消费进度存储起来，即前面提到的offset。广播模式下，同消费组的消费者相互独立，消费进度要单独存储；集群模式下，同一条消息只会被同一个消费组消费一次，消费进度会参与到负载均衡中，故消费进度是需要共享的。
     - 消费进度相关类 OffsetStore：① LocalFileOffsetStore 本地存储消费进度的具体实现，给广播模式使用；② RemoteBrokerOffsetStore 给集群模式使用，将消费进度存储在broker。
@@ -143,12 +167,13 @@ public void processConsumeResult(final ConsumeConcurrentlyStatus status,final Co
 
 - 消息消费完成后，将消息从ProcessQueue中移除，同时返回ProcessQueue中最小的offset，使用这个offset值更新消费进度，removeMessage返回的offset有两种情况，一是已经没有消息了，返回ProcessQueue最大offset+1，二是还有消息，则返回未消费消息的最小offset。
 - 举个例子，ProcessQueue中有offset为101-110的10条消息，如果全部消费完了，返回的offset为111；如果101未消费完成，102-110消费完成，则返回的offset为101，这种情况下如果消费者异常退出，会出现重复消费的风险，所以要求消费逻辑幂等。
-- 看RemoteBrokerOffsetStore的updateOffset()逻辑，将offset更新到内存中，这里RemoteBrokerOffsetStore使用ConcurrentHashMap保存MessageQueue的消费进度：
+- 看RemoteBrokerOffsetStore的updateOffset()逻辑，将offset更新到内存中，这里RemoteBrokerOffsetStore使用ConcurrentHashMap保存MessageQueue的消费进度。
+- 在拉消息时如果返回NO_NEW_MSG、NO_MATCHED_MSG、OFFSET_ILLEGAL这三种情况，则更新offset并持久化到远程Broker。
 - 在MQClientInstance启动的时候会注册定时任务，每5s执行一次persistAllConsumerOffset()，最终调用到persistAll().会将消费进度持久到远程Broker。
 
 - **消费进度先保存在内存中,然后定时5s将数据持久化到远程Broker**，offset读取：内存读,读取不到再远程读; 远程Broker读。
 
-# 4.RocketMQ 推拉模式实现机制。
+# 4. RocketMQ推拉模式实现机制。
 
 -  pullMessage函数的参数是 final PullRequest pullRequest ，这是通过“长轮询”方式达到 Push效果的方法，长轮询方式既有 Pull 的优点。长轮询就是在Broker在没有新消息的时候才阻塞，阻塞时间默认设置是 15秒，有消息会立刻返回。
 -  Pull方式问题就是循环拉取消息时间间隔不好设定，间隔太短，浪费资源；间隔太长 消息没被及时处理。
@@ -238,7 +263,7 @@ consumer.shutdown();
 
 ![](https://img2024.cnblogs.com/blog/1694759/202404/1694759-20240429101912780-356187072.png)
 
-# 5.RocketMQ怎么保证队列完全顺序消费？
+# 5. RocketMQ怎么保证队列完全顺序消费？
 
 
 - 全局顺序消息：只有一个队列，性能较差；
@@ -263,38 +288,7 @@ consumer.shutdown();
 - 3.第三把锁分布式锁，consumer上顺序消费的类有个定时任务，每隔20秒去向broke发送它订阅的topic的锁定队列请求。
 - 4.第四把锁，consumer上在获取到队列的消息的时候，让消费线程池去处理，处理前必须获取到本地队列的锁。参考：ConsumeMessageOrderlyService.ConsumeRequest 类。
 
-
-# 6. RocketMQ 业务名词含义。
-
-- 定时(延迟消息): broker有配置项messageDelayLevel，默认值为“1s 5s 10s 30s 1m 2m 3m 4m 5m 6m 7m 8m 9m 10m 20m 30m 1h 2h”，18个level。可以配置自定义messageDelayLevel。定时消息会暂存在名为SCHEDULE_TOPIC_XXXX的topic中，并根据delayTimeLevel存入特定的queue,即一个queue只存相同延迟的消息.
-  broker会调度地消费SCHEDULE_TOPIC_XXXX，将消息写入真实的topic。
-- 消息重试: 生产者在发送消息时，同步消息失败会重投，异步无重试有回调函数，oneway没有任何保证。消息重投保证消息尽可能发送成功、不丢失，但可能会造成消息重复，消息重复在RocketMQ中是无法避免的问题。消息重复在一般情况下不会发生，当出现消息量大、网络抖动，消息重复就会是大概率事件。另外，生产者主动重发、consumer负载变化也会导致重复消息。
-
-- NameServer：NameServer是一个非常简单的Topic路由注册中心，其角色类似Dubbo中的zookeeper，支持Broker的动态注册与发现。主要包括两个功能：Broker管理，NameServer接受Broker集群的注册信息并且保存下来作为路由信息的基本数据，包括哪些Broker上有哪些队列。
-  然后提供心跳检测机制，检查Broker是否还存活；路由信息管理，每个NameServer将保存关于Broker集群的整个路由信息和用于客户端查询的队列信息。
-  然后Producer和Conumser通过NameServer就可以知道整个Broker集群的路由信息，从而进行消息的投递和消费。NameServer通常也是集群的方式部署，各实例间相互不进行信息通讯。
-  Broker是向每一台NameServer注册自己的路由信息，所以每一个NameServer实例上面都保存一份完整的路由信息。当某个NameServer因某种原因下线了，Broker仍然可以向其它NameServer同步其路由信息，Producer,Consumer仍然可以动态感知Broker的路由的信息。
-
-
-
-- NameServer是一个几乎无状态节点，可集群部署，节点之间无任何信息同步。
-  Broker部署相对复杂，Broker分为Master与Slave，一个Master可以对应多个Slave，但是一个Slave只能对应一个Master，Master与Slave 的对应关系通过指定相同的BrokerName，不同的BrokerId 来定义，BrokerId为0表示Master，非0表示Slave。Master也可以部署多个。每个Broker与NameServer集群中的所有节点建立长连接，定时注册Topic信息到所有NameServer。 注意：当前RocketMQ版本在部署架构上支持一Master多Slave，但只有BrokerId=1的从服务器才会参与消息的读负载。
-  Producer与NameServer集群中的其中一个节点（随机选择）建立长连接，定期从NameServer获取Topic路由信息，并向提供Topic 服务的Master建立长连接，且定时向Master发送心跳。Producer完全无状态，可集群部署。
-  Consumer与NameServer集群中的其中一个节点（随机选择）建立长连接，定期从NameServer获取Topic路由信息，并向提供Topic服务的Master、Slave建立长连接，且定时向Master、Slave发送心跳。Consumer既可以从Master订阅消息，也可以从Slave订阅消息，消费者在向Master拉取消息时，Master服务器会根据拉取偏移量与最大偏移量的距离（判断是否读老消息，产生读I/O），以及从服务器是否可读等因素建议下一次是从Master还是Slave拉取。生产者每 30 秒从 Namesrv 获取 Topic 跟 Broker 的映射关系，更新到本地内存中。然后再跟 Topic 涉及的所有 Broker 建立长连接，每隔 30 秒发一次心跳。
-- 启动NameServer，NameServer起来后监听端口，等待Broker、Producer、Consumer连上来，相当于一个路由控制中心。
-  Broker启动，跟所有的NameServer保持长连接，定时发送心跳包。心跳包中包含当前Broker信息(IP+端口等)以及存储所有Topic信息。注册成功后，NameServer集群中就有Topic跟Broker的映射关系。
-  收发消息前，先创建Topic，创建Topic时需要指定该Topic要存储在哪些Broker上，也可以在发送消息时自动创建Topic。
-  Producer发送消息，启动时先跟NameServer集群中的其中一台建立长连接，并从NameServer中获取当前发送的Topic存在哪些Broker上，轮询从队列列表中选择一个队列，然后与队列所在的Broker建立长连接从而向Broker发消息。
-  Consumer跟Producer类似，跟其中一台NameServer建立长连接，获取当前订阅Topic存在哪些Broker上，然后直接跟Broker建立连接通道，开始消费消息。  每隔 30 秒发一次心跳。
-
-# 7.Topic路由注册与剔除流程：
-
-+ A.Broker 每30s向 NameServer 发送心跳包，心跳包中包含主题的路由信息(主题的读写队列数、操作权限等)，NameServer 会通过 HashMap 更新 Topic 的路由信息，并记录最后一次收到 Broker 的时间戳。
-+ B.NameServer 以每10s的频率清除已宕机的 Broker，NameServer 认为 Broker 宕机的依据是如果当前系统时间戳减去最后一次收到 Broker 心跳包的时间戳大于120s。
-+ C.消息生产者以每30s的频率去拉取主题的路由信息，即消息生产者并不会立即感知 Broker 服务器的新增与删除。
-
-
-# 8.RebalanceService 线程：
+# 6. RebalanceService 线程：
 
 ![](https://img2020.cnblogs.com/blog/1694759/202111/1694759-20211116145625523-1563475991.png)
 
@@ -348,9 +342,15 @@ public void start() throws MQClientException {
 
 
 
+# 7. Topic路由注册与剔除流程
+
++ A.Broker 每30s向 NameServer 发送心跳包，心跳包中包含主题的路由信息(主题的读写队列数、操作权限等)，NameServer 会通过 HashMap 更新 Topic 的路由信息，并记录最后一次收到 Broker 的时间戳。
++ B.NameServer 以每10s的频率清除已宕机的 Broker，NameServer 认为 Broker 宕机的依据是如果当前系统时间戳减去最后一次收到 Broker 心跳包的时间戳大于120s。
++ C.消息生产者以每30s的频率去拉取主题的路由信息，即消息生产者并不会立即感知 Broker 服务器的新增与删除。
 
 
-# 9.主从同步(HA):
+
+# 9. 主从同步(HA)
 
 ![](https://img2020.cnblogs.com/blog/1694759/202111/1694759-20211116145413996-648336471.png)
 
@@ -362,7 +362,7 @@ E.客户端收到一批消息后，将消息写入本地commitlog文件中，然
 F.然后重复第3步；
 
 
-# 10.事务消息:
+# 10. 事务消息:
 
 ![](https://img2020.cnblogs.com/blog/1694759/202111/1694759-20211116145454842-308649345.png)
 
@@ -376,64 +376,26 @@ RocketMQ事务消息的实现原理是类似基于二阶段提交与事务状态
 + C.消息服务端会开启一个专门的线程，以每60s的频率从RMQ_SYS_TRANS_OP_HALF_TOPIC中拉取一批消息，进行事务状态的回查，其实现原理是根据消息所属的消息生产者组名随机获取一个生产者，向其询问该消息对应的本地事务是否成功，如果本地事务成功(该部分是由业务提供的事务回查监听器来实现)，则消息服务端执行提交动作；如果事务状态返回失败，则消息服务端执行回滚动作；如果事务状态未知，则不做处理，待下一次定时任务触发再检查。默认如果连续5次回查都无法得到确切的事务状态，则执行回滚动作。
 
 
-
-# 11.RocketMQ 与 Kafka 区别
-
-- 1.架构区别
-
-    + RocketMQ由NameServer、Broker、Consumer、Producer组成，NameServer之间互不通信，Broker会向所有的nameServer注册，通过心跳判断broker是否存活，producer和consumer 通过nameserver就知道broker上有哪些topic。
-    + Kafka的元数据信息都是保存在Zookeeper，新版本部分已经存放到了Kafka内部了，由Broker、Zookeeper、Producer、Consumer组成。
-    + 两者都支持事务消息（ Kafka从0.11.0.0 版本）、顺序消息。
-
-- 2.维度区别
-
-    + Kafka的master/slave是基于partition(分区)维度的，而RocketMQ是基于Broker维度的；
-    + Kafka的master/slave是可以切换的（主要依靠于Zookeeper的主备切换机制）
-    + RocketMQ无法实现自动切换，当RocketMQ的Master宕机时，读能被路由到slave上，但写会被路由到此topic的其他Broker上。在4.5之后的版本有DLedger多副本机制，可以自动故障切换。
-
-- 3.刷盘机制
-
-    + RocketMQ支持同步刷盘，也就是每次消息都等刷入磁盘后再返回，保证消息不丢失，但对吞吐量稍有影响。一般在主从结构下，选择异步双写策略是比较可靠的选择。Kafka也支持同步刷盘。
-
-- 4.消息查询
-
-    + RocketMQ支持消息查询，除了queue的offset外，还支持自定义key。RocketMQ对offset和key都做了索引，均是独立的索引文件。
-
-- 5.服务治理
-
-    + Kafka用Zookeeper来做服务发现和治理，broker和consumer都会向其注册自身信息，同时watch机制订阅相应的znode，这样当有broker或者consumer宕机时能立刻感知，做相应的调整；
-    + RocketMQ用自定义的nameServer做服务发现和治理，其实时性差点，比如如果broker宕机，producer和consumer不会实时感知到，需要等到下次更新broker集群时(最长30S)才能做相应调整，服务有个不可用的窗口期，但数据不会丢失，且能保证一致性。但是某个consumer宕机，broker会实时反馈给其他consumer，立即触发负载均衡，这样能一定程度上保证消息消费的实时性。
-
-- 6.消费确认
-
-    + RocketMQ定期向broker同步消费进度(每5s)，或者在下一次pull时附带上offset。Broker 收到消费进度先缓存到内存,每5秒持久化磁盘。
-    + Kafka支持定时确认、拉取到消息自动确认、手动确认，offset存在zookeeper上。
-
-- 7.消息回溯
-
-    + Kafka理论上可以按照Offset来回溯消息。
-    + RocketMQ支持按照Offset和时间来回溯消息，精度毫秒，例如从一天之前的某时某分某秒开始重新消费消息，典型业务场景如consumer做订单分析，但是由于程序逻辑或者依赖的系统发生故障等原因，导致今天消费的消息全部无效，需要重新从昨天零点开始消费，那么以时间为起点的消息重放功能对于业务非常有帮助。
-
-- 8.数据写入：
-
-    - Kafka每个partition独占一个目录，每个partition均有各自的数据文件.log；引入了日志分段(每段1GB),每个日志文件对应两个索引文件（偏移量索引文件、时间戳索引文件），提高消息查询效率。
-      - Kafka的数据写入熟读比RocketMQ高出一个量级。但超过一定数量的文件同时写入，会导致原先的顺序写转为随机写，性能急剧下降，所以Kafka的分区数量是有限制的。
-    - RocketMQ是每个topic共享一个数据文件CommitLog日志文件，默认1G（新文件的文件名会根据起始偏移量进行命名），每个队列都有一个索引文件(偏移量和消息的存储时间戳).
-
-- 9.特有
-
-    + RocketMQ支持tag、支持延时消息、消息重试机制、支持按时间和offset回溯
-    + Kafka 引入了日志分段(每段1GB),每个日志文件对应两个索引文件（偏移量索引文件、时间戳索引文件），提高消息查询效率。
-
-- 10.两者都高性能
-
-    - **页缓存技术**、**磁盘顺序写**、**内存映射文件**、**零Copy技术**
-    - Kafka量级19w/s   RocketMQ 12w/s
+# 11. RocketMQ哪些场景会出现消息重复消费
 
 
+- 消费者应用程序异常：
+  当消费者在处理消息时抛出未捕获的异常，RocketMQ认为该消息没有被正常消费，因此会尝试重新投递该消息，可能导致消息被多次处理。
+- 消费者超时：
+  如果消费者处理消息的时间超过了RocketMQ配置的消费超时时间，RocketMQ同样会认为消费失败并重新投递消息。
+- 消费者主动ACK机制失效：
+  在手动ACK模式下，如果消费者正确处理了消息但未能成功发送ACK确认给RocketMQ，RocketMQ会认为消息未被消费，从而再次投递。
+- 消费者实例重启或网络闪断：
+  当消费者实例重启或因网络问题与RocketMQ短暂失去连接，RocketMQ可能会认为消费者已消费的消息实际上未被处理，从而重新分配这些消息。
+- Consumer Group内成员变动：
+  在CLUSTERING模式下，如果Consumer Group内的消费者实例数量发生变化（如新增或减少消费者实例），会触发Rebalance，可能导致部分消息被重新分配并消费。
+- Broker故障恢复或数据迁移：
+  Broker端的问题，如故障恢复或数据迁移过程中，可能会导致消费者收到重复消息。
+
+所以，消费者确保消息处理过程是幂等的。
 
 
-# 13、说说RocketMQ的ConsumeQueue消息的格式？
+# 20. RocketMQ的ConsumeQueue消息的格式？
 
 在RocketMQ中，ConsumeQueue是用于存储消息消费进度的数据结构。它是基于文件的存储方式，每个主题（Topic）都有一个对应的ConsumeQueue文件。
 
@@ -475,13 +437,13 @@ ConsumeQueue中的消息格式如下：
 
 
 
-# 14、说说消息的reput过程？
+# 21. RocketMQ消息的可靠性和一致性进行保障过程？
 
 在RocketMQ中，消息的reput过程是指对消息的可靠性和一致性进行保障的过程。RocketMQ是一个分布式消息队列系统，用于实现高可靠性、高吞吐量的消息传递。
 
 消息的reput过程在RocketMQ中包括以下几个步骤：
 
-1. **消息发送** ：消息的发送者将消息发送到RocketMQ的生产者。
+1. **消息发送** ：消息的发送者将消息发送到RocketMQ的生产者。同步发送,多个Broker重试，默认3次。
 1. **消息持久化** ：生产者将消息持久化到本地磁盘，以保证消息的可靠性。消息会被写入消息日志文件（Commit Log）和索引文件（Index File）。
 1. **主从同步** ：消息在主节点持久化后，会通过主从同步机制将消息复制到从节点。这样可以保证即使主节点宕机，消息仍然可以在从节点上访问。
 1. **消息复制** ：消息在主从同步后，会在从节点上进行消息复制。从节点会将消息写入本地的消息日志文件和索引文件。
@@ -490,9 +452,17 @@ ConsumeQueue中的消息格式如下：
 1. **消息重试** ：如果消费者在消费过程中出现异常或者超时，RocketMQ会进行消息重试。消息重试机制会根据配置的重试次数和重试间隔进行消息的重新消费。
 1. **消息顺序** ：RocketMQ还支持消息的顺序消费。在顺序消费模式下，消息会按照发送顺序进行消费，保证消息的顺序性。
 
-需要注意的是，RocketMQ的消息reput过程是基于分布式架构的，通过主从同步和消息复制机制保证消息的可靠性和一致性。同时，RocketMQ还提供了丰富的配置选项和监控工具，以便对消息的reput过程进行监控和调优。
 
-# 15、RocketMQ 常用部署模式
+# 22. RocketMQ如何保证消息不丢失？
+
+- Producer端：同步发送,多个Broker重试，默认3次。
+- Broker端:  修改刷盘策略为同步刷盘，持久化到本地磁盘。默认情况下是异步刷盘的,集群部署。消息会被写入消息日志文件（Commit Log）和索引文件（Index File）。
+- 主从同步：消息在主节点持久化后，会通过主从同步机制将消息复制到从节点。这样可以保证即使主节点宕机，消息仍然可以在从节点上访问。
+- Consumer端: 完全消费正常后在进行ack确认，异常会进入消费重试
+- 死信队列：如果消息多次重试扔消费不成功，会进入死信队列。
+
+
+# 25. RocketMQ常用部署模式
 
 单机模式
 多主模式
@@ -502,7 +472,7 @@ Dledger 集群模式: 4.5版本之后,采用Raft协议,一主多从,故障可自
 
 
 
-# 16.RocketMQ最大消息大小
+# 26. RocketMQ最大消息大小
 
 集群消费 和 广播消费
 
@@ -513,13 +483,7 @@ RocketMQ默认最大消息大小通常是 4 MB。调整最大消息大小注意�
 
 
 
-# 17.RocketMQ 如何保证消息不丢失？
-
-- Producer端：同步发送,默认3次。
-- Broker端:  修改刷盘策略为同步刷盘。默认情况下是异步刷盘的,集群部署
-- Consumer端: 完全消费正常后在进行手动 ack 确认.
-
-# 18.消费特殊的Topic
+# 27. 消费特殊的Topic
 
 - 1.延迟消息（18次：1s、5s、10s、30s、1m ... 2h ）(**特殊的Topic**)
     - 定时消息会暂存在名为**SCHEDULE_TOPIC_XXXX**的topic中，并根据delayTimeLevel存入特定的queue,即一个queue只存相同延迟的消息.broker会调度地消费SCHEDULE_TOPIC_XXXX，将消息写入真实的topic。
@@ -538,13 +502,70 @@ RocketMQ默认最大消息大小通常是 4 MB。调整最大消息大小注意�
 - 死信队列(**特殊的Topic**)
     - **就是一个特殊的Topic**，名称为%DLQ%consumerGroup@consumerGroup，每个**消费组**都有的，如果重试消息达到最大后进入死信队列。未产生死信消息时，不会产生。
 
-# 19.RocketMQ 的消息堆积如何处理？
+# 28. RocketMQ的消息堆积如何处理？
 
 1.增大消费者线程数;
 2.如果Queue>消费者数量，增消费者实例;
 3.如果Queue<消费者数量的情况。可以使用准备一个临时的 topic，同时创建一些 queue，在临时创建一个消费者来把这些消息转移到 topic 中,让消费者消费。
 
-# 60.Kafka最大消息大小
+
+# 40. RocketMQ与Kafka区别
+
+- 1.架构区别
+
+    + RocketMQ由NameServer、Broker、Consumer、Producer组成，NameServer之间互不通信，Broker会向所有的nameServer注册，通过心跳判断broker是否存活，producer和consumer 通过nameserver就知道broker上有哪些topic。
+    + Kafka的元数据信息都是保存在Zookeeper，新版本部分已经存放到了Kafka内部了，由Broker、Zookeeper、Producer、Consumer组成。
+    + 两者都支持事务消息（ Kafka从0.11.0.0 版本）、顺序消息。
+
+- 2.维度区别
+
+    + Kafka的master/slave是基于partition(分区)维度的，而RocketMQ是基于Broker维度的；
+    + Kafka的master/slave是可以切换的（主要依靠于Zookeeper的主备切换机制）
+    + RocketMQ无法实现自动切换，当RocketMQ的Master宕机时，读能被路由到slave上，但写会被路由到此topic的其他Broker上。在4.5之后的版本有DLedger多副本机制，可以自动故障切换。
+
+- 3.刷盘机制
+
+    + RocketMQ支持同步刷盘，也就是每次消息都等刷入磁盘后再返回，保证消息不丢失，但对吞吐量稍有影响。一般在主从结构下，选择异步双写策略是比较可靠的选择。Kafka也支持同步刷盘。
+
+- 4.消息查询
+
+    + RocketMQ支持消息查询，除了queue的offset外，还支持自定义key。RocketMQ对offset和key都做了索引，均是独立的索引文件。
+
+- 5.服务治理
+
+    + Kafka用Zookeeper来做服务发现和治理，broker和consumer都会向其注册自身信息，同时watch机制订阅相应的znode，这样当有broker或者consumer宕机时能立刻感知，做相应的调整；
+    + RocketMQ用自定义的nameServer做服务发现和治理，其实时性差点，比如如果broker宕机，producer和consumer不会实时感知到，需要等到下次更新broker集群时(最长30S)才能做相应调整，服务有个不可用的窗口期，但数据不会丢失，且能保证一致性。但是某个consumer宕机，broker会实时反馈给其他consumer，立即触发负载均衡，这样能一定程度上保证消息消费的实时性。
+
+- 6.消费确认
+
+    + RocketMQ定期向broker同步消费进度(每5s)，或者在下一次pull时附带上offset。Broker 收到消费进度先缓存到内存,每5秒持久化磁盘。
+    + Kafka支持定时确认、拉取到消息自动确认、手动确认，offset存在zookeeper上。
+
+- 7.消息回溯
+
+    + Kafka理论上可以按照Offset来回溯消息。
+    + RocketMQ支持按照Offset和时间来回溯消息，精度毫秒，例如从一天之前的某时某分某秒开始重新消费消息，典型业务场景如consumer做订单分析，但是由于程序逻辑或者依赖的系统发生故障等原因，导致今天消费的消息全部无效，需要重新从昨天零点开始消费，那么以时间为起点的消息重放功能对于业务非常有帮助。
+
+- 8.数据写入：
+
+    - Kafka每个partition独占一个目录，每个partition均有各自的数据文件.log；引入了日志分段(每段1GB),每个日志文件对应两个索引文件（偏移量索引文件、时间戳索引文件），提高消息查询效率。
+        - Kafka的数据写入熟读比RocketMQ高出一个量级。但超过一定数量的文件同时写入，会导致原先的顺序写转为随机写，性能急剧下降，所以Kafka的分区数量是有限制的。
+    - RocketMQ是每个topic共享一个数据文件CommitLog日志文件，默认1G（新文件的文件名会根据起始偏移量进行命名），每个队列都有一个索引文件(偏移量和消息的存储时间戳).
+
+- 9.特有
+
+    + RocketMQ支持tag、支持延时消息、消息重试机制、支持按时间和offset回溯
+    + Kafka 引入了日志分段(每段1GB),每个日志文件对应两个索引文件（偏移量索引文件、时间戳索引文件），提高消息查询效率。
+
+- 10.两者都高性能
+
+    - **页缓存技术**、**磁盘顺序写**、**内存映射文件**、**零Copy技术**
+    - Kafka量级19w/s   RocketMQ 12w/s
+
+
+
+
+# 41. Kafka最大消息大小
 
 Kafka服务器默认最大消息大小通常是 1 MB。调整最大消息大小注意：
 
@@ -553,7 +574,7 @@ Kafka服务器默认最大消息大小通常是 1 MB。调整最大消息大小�
 - 消费者端调整 max.partition.fetch.bytes，确保这些值都适当地设置以允许更大消息的传输，并且要保证生产者的配置不超过 broker 端的限制。
 - 副本同步message.max.bytes 的值必须小于等于 replica.fetch.max.bytes。
 
-# 61、Kafka 为什么不支持读写分离?。
+# 42. Kafka为什么不支持读写分离?。
 
 Leader/Follower 模型并没有规定 Follower 副本不可以对外提供读服务。很多框架都是允许这么做的，只是 Kafka 最初为了避免不一致性的问题，而采用了让 Leader 统一提供服 务的方式。Kafka 2.4 之后，Kafka 提供了有限度的读写分离，也就是说Follower副本能够对外提供读服务。
 
@@ -567,7 +588,7 @@ Leader/Follower 模型并没有规定 Follower 副本不可以对外提供读服
 
 
 
-# 62.Kafka 的 ack 机制
+# 43. Kafka的ack机制
 
 request.required.acks 有三个值 0、1、 -1(ALL)
 
@@ -575,7 +596,7 @@ request.required.acks 有三个值 0、1、 -1(ALL)
 - 1:  服务端会等待ack值， 半数以上副本确认接收到消息后发送ack。但是如果leader挂掉后，不确保是否复制完成，新leader也会导致数据丢失。
 - -1(ALL) : 同样在 1 的基础上 服务端会等所有的follower的副本受到数据后才会受到leader发出的ack，这样数据不会丢失
 
-# 63.Kafka如何实现每秒上百万的超高并发写入
+# 44. Kafka如何实现每秒上百万的超高并发写入
 
 - **页缓存技术**： 每次接收到数据直接写入OSCache中
 - **磁盘顺序写**：每次都是追加文件末尾顺序写的方式.
@@ -586,7 +607,8 @@ request.required.acks 有三个值 0、1、 -1(ALL)
 - **零Copy**： 堆外内存，直接让操作系统的 Cache 中的数据发送到网卡后传输给下游的消费者。跳过数据Copy应用内存。
 - **内存映射文件**：将文件映射(FileChannel)到内存地址空间，减少了数据复制的开销。
 
-# 64.Kafka控制器的作用
+# 45. Kafka控制器的作用
+
 Kafka 集群中会有一个或多个 broker，其中有一个 broker 会被选举为控制器（Kafka Controller），它负责管理整个集群中所有分区和副本的状态。
 当某个分区的 leader 副本出现故障时，由控制器负责为该分区选举新的 leader 副本。
 当检测到某个分区的 ISR 集合发生变化时，由控制器负责通知所有broker更新其元数据信息。
