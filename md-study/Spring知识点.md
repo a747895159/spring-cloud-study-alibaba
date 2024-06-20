@@ -1,6 +1,8 @@
 
 https://blog.csdn.net/it_lihongmin/article/details/109027896?spm=1001.2014.3001.5501
 
+[TOC]
+----
 
 # 1.简单的SpringIOC解决循环依赖的流程图
 - 原理： 将注入的对象放入缓存中，将堆内存的物理地址暴露出去，循环引入对象直接获取地址即可。
