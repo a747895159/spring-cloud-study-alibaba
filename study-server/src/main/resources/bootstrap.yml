@@ -24,3 +24,15 @@ spring:
         prefix: study-server
   profiles:
     active: dev
+
+#动态线程池配置
+threadpool:
+  custom:
+    Single-executor:
+      corePoolSize: 6
+      maxPoolSize: 15
+      queueCapacity: 100000
+    Exec-executor:
+      corePoolSize: 8
+      maxPoolSize: 15
+      queueCapacity: 100000

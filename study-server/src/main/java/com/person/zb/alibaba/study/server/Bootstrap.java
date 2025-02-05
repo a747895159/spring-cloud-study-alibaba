@@ -4,6 +4,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.boot.autoconfigure.jdbc.DataSourceAutoConfiguration;
+import org.springframework.boot.context.properties.ConfigurationPropertiesScan;
 import org.springframework.cloud.client.SpringCloudApplication;
 import org.springframework.cloud.client.discovery.EnableDiscoveryClient;
 import org.springframework.cloud.openfeign.EnableFeignClients;
@@ -22,6 +23,7 @@ import springfox.documentation.swagger2.annotations.EnableSwagger2WebMvc;
 @EnableDiscoveryClient
 @EnableSwagger2WebMvc
 @EnableFeignClients
+@ConfigurationPropertiesScan
 @ComponentScan(value = {"com.person.zb.alibaba.study", "springfox.documentation.schema"})
 public class Bootstrap {
 
