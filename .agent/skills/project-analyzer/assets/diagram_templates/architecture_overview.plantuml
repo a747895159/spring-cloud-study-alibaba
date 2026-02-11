@@ -1,0 +1,24 @@
+@startuml
+!theme plain
+title 系统架构概览
+
+actor "用户" as user
+boundary "Web 浏览器/客户端应用" as client
+control "API 网关/负载均衡" as gateway
+component "后端服务 (API/业务逻辑)" as backend
+database "数据库 (DB)" as db
+cloud "第三方服务" as third_party
+
+user --> client : 访问
+client --> gateway : HTTP/HTTPS 请求
+gateway --> backend : 路由请求
+backend --> db : 数据读写
+backend --> third_party : 调用
+
+backend -- client : 推送通知 (WebSocket)
+
+note right of backend : 包含业务逻辑、服务编排
+
+footer 生成日期: %date("%Y-%m-%d %H:%M")
+
+@enduml

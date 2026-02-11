@@ -1,0 +1,223 @@
+# Stack Analyzer 推荐配置
+#
+# 此文件定义根据检测到的技术栈激活或脚手架哪些技能。
+#
+# 结构：
+# - activate_skills：插件中已有的通用技能（仅激活）
+# - scaffold_templates：在目标仓库中创建的项目特定技能
+
+# =============================================================================
+# 要激活的通用技能
+# =============================================================================
+# 这些技能已存在于 plugins/ai-dev-kit/skills/ 中
+# 它们是与框架无关的通用技能，适用于使用该技术的任何代码库。
+
+activate_skills:
+  # BAML 集成
+  # 为任何使用 BAML 进行类型安全 LLM 提示的项目激活
+  baml-integration:
+    detect:
+      files:
+        - "baml_src/**/*.baml"
+        - "baml/**/*.baml"
+      dependencies:
+        - "baml-py"
+        - "baml"
+        - "@boundaryml/baml"
+    priority: high
+    description: "用于类型安全 LLM 提示的通用 BAML 模式"
+
+  # Supabase 模式
+  # 为任何使用 Supabase 作为后端的项目激活
+  supabase-patterns:
+    detect:
+      files:
+        - "supabase/migrations/**"
+        - "supabase/config.toml"
+      dependencies:
+        - "supabase"
+        - "@supabase/supabase-js"
+        - "supabase-py"
+    priority: high
+    description: "通用 Supabase 最佳实践（RLS、实时、存储）"
+
+  # 模式对齐
+  # 为任何使用数据库 ORM 的项目激活
+  schema-alignment:
+    detect:
+      files:
+        - "alembic/**"
+        - "migrations/**"
+        - "prisma/schema.prisma"
+        - "**/models/*.py"
+      dependencies:
+        - "sqlalchemy"
+        - "alembic"
+        - "prisma"
+        - "@prisma/client"
+        - "django"
+        - "typeorm"
+        - "sequelize"
+        - "drizzle-orm"
+    priority: high
+    description: "数据库/代码漂移检测（适用于任何 ORM）"
+
+  # Tree-sitter 模式
+  # 为使用 tree-sitter 进行代码解析的项目激活
+  treesitter-patterns:
+    detect:
+      files:
+        - "**/tree_sitter/**"
+        - "**/queries/*.scm"
+      dependencies:
+        - "tree-sitter"
+        - "tree_sitter"
+        - "tree-sitter-python"
+        - "tree-sitter-typescript"
+    priority: medium
+    description: "通用语言解析模式"
+
+  # 安全审计
+  # 始终推荐用于生产代码库
+  security-audit:
+    detect:
+      always: true
+      except_if_files:
+        - ".security-exempt"
+    priority: low
+    description: "常见漏洞检测（SQL 注入、裸异常捕获等）"
+
+  # MCP 模式
+  # 用于构建或使用 MCP 服务器的项目
+  mcp-patterns:
+    detect:
+      files:
+        - "**/*mcp*.py"
+        - "**/*mcp*.ts"
+        - ".mcp.json"
+      dependencies:
+        - "mcp"
+        - "@modelcontextprotocol/sdk"
+        - "mcp-python"
+    priority: medium
+    description: "模型上下文协议服务器模式"
+
+  # FastAPI 模式
+  # 用于使用 FastAPI 的 Python 后端项目
+  fastapi-patterns:
+    detect:
+      files:
+        - "**/routes/**/*.py"
+        - "**/routers/**/*.py"
+        - "**/api/**/*.py"
+      dependencies:
+        - "fastapi"
+        - "uvicorn"
+    priority: medium
+    description: "FastAPI 端点模式和中间件"
+
+  # React 模式
+  # 用于使用 React 的前端项目
+  react-patterns:
+    detect:
+      files:
+        - "src/components/**/*.tsx"
+        - "src/components/**/*.jsx"
+        - "app/**/*.tsx"
+      dependencies:
+        - "react"
+        - "react-dom"
+        - "next"
+    priority: medium
+    description: "React 组件模式和 Hooks"
+
+# =============================================================================
+# 要脚手架的项目特定技能
+# =============================================================================
+# 这些是模板，会被定制并放置在目标仓库中。
+# 它们在插件卸载后仍保留，并在 _generated.json 中跟踪。
+
+scaffold_templates:
+  # 研究模式
+  # 用于具有研究导向 AI 子代理的项目
+  project-research:
+    detect:
+      files:
+        - ".claude/commands/**/research/**"
+        - ".claude/agents/**research**.md"
+        - "baml_src/**research**.baml"
+      patterns:
+        - "subagent.*research"
+        - "research.*agent"
+    template_dir: "templates/project-research"
+    output_pattern: ".claude/skills/{project}-research/"
+    description: "此项目特定的研究工作流模式"
+
+  # 领域词汇表
+  # 用于具有丰富领域模型的项目
+  project-domain:
+    detect:
+      files:
+        - "src/models/**/*.py"
+        - "src/models/**/*.ts"
+        - "services/domain/**"
+        - "domain/**/*.py"
+        - "baml_src/types/**"
+    min_files: 5
+    template_dir: "templates/project-domain"
+    output_pattern: ".claude/skills/{project}-domain/"
+    description: "此项目的领域词汇表和实体关系"
+
+  # 自定义测试
+  # 用于具有非标准测试需求的项目
+  project-testing:
+    detect:
+      files:
+        - "tests/fixtures/**"
+        - "tests/e2e/**"
+        - "tests/integration/**"
+        - "playwright/**"
+      dependencies:
+        - "playwright"
+        - "@playwright/test"
+        - "cypress"
+    min_files: 10
+    template_dir: "templates/project-testing"
+    output_pattern: ".claude/skills/{project}-testing/"
+    description: "此项目的自定义测试模式和夹具"
+
+  # API 文档
+  # 用于具有广泛 API 接口的项目
+  project-api:
+    detect:
+      files:
+        - "openapi/**"
+        - "specs/api/**"
+        - "**/swagger.json"
+        - "**/openapi.yaml"
+      dependencies:
+        - "openapi"
+        - "@redocly/cli"
+    template_dir: "templates/project-api"
+    output_pattern: ".claude/skills/{project}-api/"
+    description: "此项目的 API 模式和文档"
+
+# =============================================================================
+# 技能优先级权重
+# =============================================================================
+# 用于在报告中排序推荐
+
+priority_weights:
+  high: 3
+  medium: 2
+  low: 1
+
+# =============================================================================
+# 输出设置
+# =============================================================================
+
+output:
+  manifest_path: ".claude/skills/_generated.json"
+  report_format: "markdown"
+  include_inactive_recommendations: true
+  show_detection_details: true

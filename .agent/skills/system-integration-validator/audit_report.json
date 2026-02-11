@@ -1,0 +1,132 @@
+{
+  "skill": {
+    "name": "系统集成验证器",
+    "description": "在部署前验证系统集成。用于检查端口、数据库连接、前后端 API 或调试被阻塞/卡住的工作流时使用。检测死端、瓶颈、循环依赖。",
+    "summary": "通过端口检查、数据库测试和数据流分析，在部署前验证系统集成。",
+    "icon": "🔍",
+    "version": "1.0.0",
+    "author": "BarisSoizen",
+    "license": "MIT",
+    "category": "devops",
+    "tags": ["集成", "验证", "部署", "调试"],
+    "supported_tools": ["claude", "codex", "claude-code"]
+  },
+  "security_audit": {
+    "risk_level": "安全",
+    "is_blocked": false,
+    "safe_to_publish": true,
+    "summary": "纯提示词文档类技能，无可执行代码。仅提供验证指导。无文件访问、网络操作或外部命令执行。",
+    "risk_factor_evidence": [],
+    "critical_findings": [],
+    "high_findings": [],
+    "medium_findings": [],
+    "low_findings": [],
+    "dangerous_patterns": [],
+    "files_scanned": 1,
+    "total_lines": 76
+  },
+  "content": {
+    "user_title": "在部署前验证系统集成",
+    "value_statement": "集成故障会导致部署延迟和生产事故。此技能提供端口、数据库、API 和数据流的逐步验证，以便尽早发现问题。",
+    "seo_keywords": ["系统集成验证", "部署前检查清单", "端口可用性检查", "数据库连接测试", "API 契约验证", "数据流分析", "Claude Code 技能", "部署验证", "集成测试"],
+    "actual_capabilities": [
+      "使用 lsof 命令检查端口可用性",
+      "验证 PostgreSQL 和 Redis 数据库连接",
+      "验证前后端 API 契约一致性",
+      "检测数据流中的死端、孤立输入和瓶颈"
+    ],
+    "limitations": [
+      "不执行命令 - 仅提供指导",
+      "不修改系统配置",
+      "需要用户手动运行验证命令",
+      "不在会话之间持久化验证结果"
+    ],
+    "use_cases": [
+      {
+        "target_user": "DevOps 工程师",
+        "title": "部署前验证",
+        "description": "在部署到预发布或生产环境之前，运行全面的端口、数据库和 API 检查。"
+      },
+      {
+        "target_user": "后端开发人员",
+        "title": "调试卡住的工作流",
+        "description": "识别导致工作流挂起或静默失败的循环依赖和数据流问题。"
+      },
+      {
+        "target_user": "全栈开发人员",
+        "title": "验证 API 契约",
+        "description": "确保前端和后端 API 端点匹配，以防止集成缺陷。"
+      }
+    ],
+    "prompt_templates": [
+      {
+        "title": "基本端口检查",
+        "scenario": "快速检查端口可用性",
+        "prompt": "检查本地机器上端口 3000、3001、5432、6379 和 8080 是否可用。"
+      },
+      {
+        "title": "数据库连接",
+        "scenario": "测试数据库连接",
+        "prompt": "验证 localhost 上的 PostgreSQL 和 Redis 连接是否正常。显示测试每个连接的命令。"
+      },
+      {
+        "title": "API 契约验证",
+        "scenario": "前后端 API 验证",
+        "prompt": "帮我验证前端 API 调用是否与后端端点匹配。我应该检查什么？"
+      },
+      {
+        "title": "数据流分析",
+        "scenario": "检测集成问题",
+        "prompt": "分析我的系统数据流中的死端、孤立输入、瓶颈和循环依赖。"
+      }
+    ],
+    "output_examples": [
+      {
+        "input": "在部署前验证我的系统集成",
+        "output": [
+          "端口检查：所有必需端口（3000、3001、5432、6379、8080）均空闲",
+          "数据库：PostgreSQL 和 Redis 连接已验证",
+          "API 契约：前端端点与后端定义匹配",
+          "数据流：未检测到死端或循环依赖",
+          "可以部署"
+        ]
+      }
+    ],
+    "best_practices": [
+      "在启动任何服务之前运行端口检查以避免冲突",
+      "使用实际的查询/ping 命令测试数据库连接，而不仅仅是套接字测试",
+      "在所有网络操作上使用超时以防止挂起"
+    ],
+    "anti_patterns": [
+      "跳过端口检查，直到部署时才发现冲突",
+      "假设数据库连接成功就意味着数据库完全正常",
+      "忽略数据流问题，直到用户报告工作流中断"
+    ],
+    "faq": [
+      {
+        "question": "支持哪些工具和平台？",
+        "answer": "适用于 Claude、Codex 和 Claude Code，在任何具有标准网络工具的操作系统上均可使用。"
+      },
+      {
+        "question": "此技能有什么限制？",
+        "answer": "它仅提供验证指导。你必须自己运行实际命令。"
+      },
+      {
+        "question": "如何将此技能集成到我的 CI/CD 流水线中？",
+        "answer": "使用验证步骤作为流水线脚本的模板。此技能列出了需要运行的命令。"
+      },
+      {
+        "question": "使用此技能时我的数据安全吗？",
+        "answer": "安全。此技能仅提供文档。没有数据离开你的系统。"
+      },
+      {
+        "question": "如果验证失败怎么办？",
+        "answer": "此技能提供故障排除指导。常见修复包括释放端口、启动服务或修复 API 不匹配。"
+      },
+      {
+        "question": "这与其他测试工具有什么不同？",
+        "answer": "此技能关注运行测试前的集成就绪性。它能尽早发现环境问题。"
+      }
+    ]
+  }
+}
